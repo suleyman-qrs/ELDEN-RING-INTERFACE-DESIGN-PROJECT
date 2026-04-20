@@ -1,0 +1,690 @@
+/* ======================================================
+   ELDEN RING — Hidetaka Miyazaki Web Experience
+   ====================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --font-serif:   'Agmena Pro', 'Palatino Linotype', Palatino, Georgia, serif;
+  --font-display: 'Optimus Princeps', 'Palatino Linotype', Palatino, Georgia, serif;
+  --font-sans:    'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-hk:      'HK Grotesk', 'Helvetica Neue', Helvetica, sans-serif;
+  --gold-glow:    0 0 8px  rgba(255, 208, 0, 0.6);
+  --gold-glow-lg: 0 0 15px rgba(255, 208, 0, 0.6);
+  --white: #fff;
+  --black: #000;
+  --dark-gray: #0f0f0f;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  background: var(--black);
+  color: var(--white);
+  overflow-x: hidden;
+}
+
+/* ── Shared background helpers ─────────────────────── */
+
+.bg-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  max-width: none;
+}
+
+.bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--ov, rgba(0,0,0,0.8));
+}
+
+.bg-black {
+  position: absolute;
+  inset: 0;
+  background: var(--black);
+}
+
+.bg-radial {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: darken;
+  background: radial-gradient(
+    ellipse 72% 100% at 50% 50%,
+    rgba(66,66,66,0.2) 0%,
+    rgba(26,26,26,0.12) 50%,
+    rgba(0,0,0,0.2) 100%
+  );
+}
+
+/* ── Full-screen section base ───────────────────────── */
+
+.section {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  min-height: 600px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ======================================================
+   HERO
+   ====================================================== */
+
+.hero-header {
+  position: absolute;
+  top: 33%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateY(7vh);
+  width: min(1130px, 90vw);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-shadow: var(--gold-glow-lg);
+  color: var(--white);
+  z-index: 1;
+}
+
+.hero-sub {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(16px, 2.22vw, 32px);
+  line-height: normal;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(42px, 8.89vw, 128px);
+  line-height: normal;
+}
+
+.hero-hint {
+  position: absolute;
+  bottom: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(446px, 80vw);
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(13px, 1.39vw, 20px);
+  text-align: center;
+  opacity: 0.5;
+  color: var(--white);
+  line-height: 1.5;
+  z-index: 1;
+}
+
+.scroll-cta {
+  position: absolute;
+  top: 66%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  z-index: 1;
+}
+
+.scroll-icon {
+  width: 10.7px;
+  height: auto;
+  object-fit: contain;
+  animation: scrollBounce 2s ease-in-out infinite;
+}
+
+@keyframes scrollBounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(6px); }
+}
+
+.scroll-label {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(14px, 1.67vw, 24px);
+  color: var(--white);
+  text-align: center;
+  text-shadow: var(--gold-glow-lg);
+  white-space: nowrap;
+}
+
+/* ======================================================
+   INTRO
+   ====================================================== */
+
+.intro-text {
+  position: relative;
+  z-index: 1;
+  width: min(575px, 82vw);
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(16px, 2.22vw, 32px);
+  text-align: center;
+  color: var(--white);
+  text-shadow: var(--gold-glow);
+  opacity: 0.5;
+  line-height: 1.5;
+  margin-top: -4vh;
+}
+
+/* ======================================================
+   DIALOGUE
+   ====================================================== */
+
+.dialogue {
+  align-items: flex-end;
+  padding-bottom: 9vh;
+}
+
+.dialogue-question {
+  position: relative;
+  z-index: 1;
+  width: min(642px, 82vw);
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(16px, 2.22vw, 32px);
+  text-align: center;
+  color: var(--white);
+  text-shadow: var(--gold-glow);
+  line-height: normal;
+}
+
+/* ======================================================
+   DIALOGUE CHOICES
+   ====================================================== */
+
+.dialogue-choices-section {
+  align-items: flex-end;
+  padding-bottom: 9vh;
+}
+
+.dialogue-choices {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: min(594px, 82vw);
+}
+
+.dialogue-choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  width: 100%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(104,96,81,0.5)   0%,
+    rgba(174,159,112,0.25) 50%,
+    rgba(243,223,143,0)   100%
+  );
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(16px, 2.22vw, 32px);
+  color: var(--white);
+  text-align: center;
+  text-shadow: 2px 1px 4.6px rgba(23,23,20,0.5);
+  white-space: nowrap;
+  transition: opacity 0.25s, background 0.25s;
+  line-height: 1.3;
+}
+
+.dialogue-choice:hover {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(140,126,100,0.65) 0%,
+    rgba(200,182,128,0.35) 50%,
+    rgba(243,223,143,0)    100%
+  );
+}
+
+.dialogue-choice.muted {
+  opacity: 0.45;
+}
+
+/* ======================================================
+   NARRATION — horizontal scroll
+   ====================================================== */
+
+.narration-wrapper {
+  /* 13 frames × 100vh = tall enough for each frame to have its own scroll step */
+  height: calc(13 * 100vh);
+  position: relative;
+}
+
+.narration-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.narration-track {
+  display: flex;
+  height: 100%;
+  width: calc(13 * 100vw);
+  will-change: transform;
+}
+
+.nframe {
+  position: relative;
+  flex-shrink: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.frame-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.frame-caption {
+  position: absolute;
+  bottom: clamp(60px, 8.7vh, 130px);
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  width: min(575px, 82vw);
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(16px, 2.22vw, 32px);
+  text-align: center;
+  color: var(--white);
+  text-shadow: var(--gold-glow);
+  line-height: normal;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.nframe.active .frame-caption {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ======================================================
+   LINK TO THE GAME
+   ====================================================== */
+
+.link-to-game {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-art-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.game-art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.game-art-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0) 80%, #000 100%),
+    linear-gradient(90deg,  rgba(0,0,0,0.5), rgba(0,0,0,0.5)),
+    radial-gradient(ellipse 133% 100% at 50% 50%, rgba(102,102,102,0) 0%, rgba(51,51,51,0.5) 50%, rgba(0,0,0,1) 100%);
+}
+
+.game-cta {
+  position: relative;
+  z-index: 1;
+  width: min(731px, 82vw);
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(22px, 3.33vw, 48px);
+  text-align: center;
+  color: var(--white);
+  text-shadow: var(--gold-glow);
+  line-height: 1.3;
+  margin-bottom: 18vh;
+}
+
+.platform-links {
+  position: absolute;
+  bottom: clamp(50px, 8.7vh, 107px);
+  left: 50%;
+  transform: translateX(-35%);
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  z-index: 1;
+}
+
+.platform-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: rgba(0,0,0,0.5);
+  border: 2px solid rgba(255,255,255,0.6);
+  border-radius: 2px;
+  text-decoration: none;
+  color: var(--white);
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(14px, 1.67vw, 24px);
+  white-space: nowrap;
+  overflow: hidden;
+  box-shadow:
+    -7px -5px 41.4px 0 rgba(255,255,255,0.27),
+     18px 4px 17.8px 0 rgba(0,0,0,0.99);
+  transition: background 0.25s;
+}
+
+.platform-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.platform-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.ext-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* ======================================================
+   ABOUT MIYAZAKI
+   ====================================================== */
+
+.about-miyazaki {
+  position: relative;
+  width: 100%;
+  min-height: 128vh;
+  overflow: hidden;
+  background: #000;
+}
+
+.about-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: clamp(120px, 17vh, 222px) clamp(40px, 8.33%, 120px) 80px;
+}
+
+.about-name {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-style: normal;
+  font-size: clamp(18px, 2.5vw, 36px);
+  letter-spacing: 14.4px;
+  text-transform: uppercase;
+  opacity: 0.6;
+  color: var(--white);
+  line-height: 1.2;
+  white-space: nowrap;
+  margin-bottom: clamp(100px, 15vh, 224px);
+}
+
+.about-body {
+  display: flex;
+  gap: clamp(30px, 4.2vw, 60px);
+  align-items: flex-start;
+}
+
+.about-photo-wrap {
+  flex-shrink: 0;
+  width: 210px;
+  height: 231px;
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.about-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.about-bio {
+  flex: 1;
+  max-width: 670px;
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-style: normal;
+  font-size: clamp(13px, 1.67vw, 24px);
+  letter-spacing: 1.2px;
+  opacity: 0.56;
+  color: var(--white);
+  line-height: 1.65;
+}
+
+.about-bio em {
+  font-style: normal;
+  letter-spacing: 0.8px;
+}
+
+/* ======================================================
+   FOOTER
+   ====================================================== */
+
+footer {
+  position: relative;
+  background: var(--dark-gray);
+  box-shadow: inset 0 4px 4px 0 #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding-top: 80px;
+}
+
+.footer-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+  width: min(1360px, 95vw);
+}
+
+.footer-logo {
+  width: 220px;
+  height: 78px;
+  object-fit: contain;
+  opacity: 0.5;
+}
+
+.footer-cols {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-style: normal;
+  font-size: clamp(13px, 1.39vw, 20px);
+  color: var(--white);
+  line-height: 1.5;
+  gap: 40px;
+}
+
+.footer-about,
+.footer-credits {
+  opacity: 0.5;
+  max-width: 440px;
+}
+
+.footer-credits {
+  text-align: right;
+}
+
+.footer-bar {
+  margin-top: 64px;
+  width: 100%;
+  border-top: 1px solid rgba(255,255,255,0.3);
+  padding: 24px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.footer-bar p {
+  font-family: var(--font-hk);
+  font-weight: 300;
+  font-style: normal;
+  font-size: clamp(12px, 1.39vw, 20px);
+  opacity: 0.45;
+  color: var(--white);
+  white-space: nowrap;
+}
+
+.footer-bar strong {
+  font-weight: 500;
+}
+
+/* ======================================================
+   SIDE NAVIGATION
+   ====================================================== */
+
+.sidenav {
+  position: fixed;
+  right: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  z-index: 200;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.sidenav.visible {
+  opacity: 1;
+}
+
+.nav-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.3s, transform 0.3s, box-shadow 0.3s;
+  position: relative;
+}
+
+.nav-dot::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.nav-dot.active {
+  background: rgba(255, 208, 0, 0.9);
+  box-shadow: 0 0 6px rgba(255, 208, 0, 0.7);
+  transform: scale(2);
+}
+
+/* ======================================================
+   SCROLL FADE-IN for sections
+   ====================================================== */
+
+.section,
+.link-to-game,
+.about-miyazaki {
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+
+.section.visible,
+.link-to-game.visible,
+.about-miyazaki.visible {
+  opacity: 1;
+}
+
+/* Hero is always visible */
+.hero {
+  opacity: 1 !important;
+}
+
+/* ======================================================
+   RESPONSIVE TWEAKS
+   ====================================================== */
+
+@media (max-width: 768px) {
+  .about-body {
+    flex-direction: column;
+  }
+
+  .about-photo-wrap {
+    width: 150px;
+    height: 165px;
+  }
+
+  .platform-links {
+    transform: translateX(-50%);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .footer-cols {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .footer-credits {
+    text-align: left;
+  }
+
+  .sidenav {
+    right: 16px;
+  }
+}

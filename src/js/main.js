@@ -171,7 +171,7 @@ const SCENES = [
     dir: "Scenes/01_Elden_Ring",
     prefix: "Elden_ring",
     count: 55,
-    audio: ["audio/dialogue/Elden Ring.wav"],
+    audio: ["audio/dialogue/Elden Ring.wav", "audio/dialogue/O Elden Ring.wav"],
     text: "Elden Ring. O, Elden Ring.",
   },
   {
@@ -375,7 +375,7 @@ const CHAPTER_CUES = (() => {
     return cue;
   });
   cues.splice(1, 0, {
-    frame: 27,
+    frame: 40,
     audio: ["audio/dialogue/giving life its fullest brilliance.wav"],
     text: "Giving life its<br>fullest brilliance.",
   });
@@ -401,10 +401,13 @@ class ErdtreeHScroll {
     this.player.init();
 
     // Show/hide canvas overlay; start/stop auto-play as section enters/leaves view.
+    // Stage uses a higher threshold (0.6) so it fades out quickly once the user
+    // scrolls past the section — without this, the fixed canvas blocks visual feedback.
     const io = new IntersectionObserver(
       ([entry]) => {
-        this.stage.classList.toggle("active", entry.isIntersecting);
-        if (entry.isIntersecting) {
+        const ratio = entry.intersectionRatio;
+        this.stage.classList.toggle("active", ratio > 0.6);
+        if (ratio > 0.1) {
           this._onScroll();
           this._startPlay();
         } else {
@@ -413,7 +416,7 @@ class ErdtreeHScroll {
           this._stopPlay();
         }
       },
-      { threshold: 0.1 },
+      { threshold: [0, 0.1, 0.6, 1.0] },
     );
     io.observe(this.section);
 
@@ -636,18 +639,6 @@ class RoundtableHold {
     this.section = document.getElementById("roundtable");
     this.audio = audio;
     this.awoken = false;
-
-    // Reset when the section leaves view so audio replays on re-entry / refresh.
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting && this.awoken) {
-          this.awoken = false;
-          this.section.classList.remove("rt-awake");
-        }
-      },
-      { threshold: 0.5 },
-    );
-    io.observe(this.section);
   }
 
   _playAudio() {

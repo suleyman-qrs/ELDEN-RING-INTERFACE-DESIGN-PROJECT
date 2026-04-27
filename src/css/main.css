@@ -52,6 +52,7 @@
 html {
   font-size: 16px;
   scroll-behavior: smooth;
+  scroll-snap-type: y proximity;
 }
 
 body {
@@ -287,12 +288,12 @@ body {
 }
 
 .rt-layer--glow {
-  opacity: 0;
-  mix-blend-mode: screen;
+  opacity: 1;
+  mix-blend-mode: normal;
 }
 
 .rt-layer--hover {
-  opacity: 1;
+  opacity: 0;
   cursor: pointer;
   pointer-events: none;
 }
@@ -448,66 +449,40 @@ dialog.choice-overlay::backdrop {
 }
 
 /* ======================================================
-   PHASE 4a — NARRATIVE SCROLL
+   PHASE 4 — ERDTREE HORIZONTAL SCROLL
    ====================================================== */
 
-.scroll-section {
+.erdtree-hscroll {
   position: relative;
-}
-
-#narration-scroll {
-  height: calc(14 * 100vh);
-}
-
-.scroll-sticky {
-  position: sticky;
-  top: 0;
   height: 100vh;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--black);
+  overflow-x: scroll;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  scroll-snap-align: start;
 }
 
-.narration-stage {
-  position: relative;
-  width: 100%;
+.erdtree-hscroll::-webkit-scrollbar {
+  display: none;
+}
+
+.erdtree-track {
   height: 100%;
+  width: calc(14 * 100vw);
+  pointer-events: none;
 }
 
-.nslide {
-  position: absolute;
+.erdtree-stage {
+  position: fixed;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  will-change: opacity;
-}
-
-.nslide-text {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(22px, 3.5vw, 56px);
-  line-height: 1.45;
-  text-align: center;
-  color: var(--white);
-  text-shadow: var(--glow-lg);
-  max-width: min(640px, 84vw);
-  letter-spacing: 0.04em;
-}
-
-/* ======================================================
-   PHASE 4b — ERDTREE CANVAS
-   ====================================================== */
-
-#erdtree-scroll {
-  height: 300vh;
-}
-
-.scroll-sticky--canvas {
   background: var(--black);
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+.erdtree-stage.active {
+  opacity: 1;
 }
 
 #erdtree-canvas {
@@ -533,6 +508,29 @@ dialog.choice-overlay::backdrop {
       transparent 40%,
       rgba(0, 0, 0, 0.25) 100%
     );
+}
+
+.erdtree-subtitle {
+  position: absolute;
+  bottom: 9vh;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(13px, 1.6vw, 26px);
+  line-height: 1.55;
+  text-align: center;
+  color: var(--white);
+  text-shadow: var(--glow-lg);
+  max-width: min(540px, 80vw);
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.erdtree-subtitle.visible {
+  opacity: 1;
 }
 
 /* ======================================================

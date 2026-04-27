@@ -1,0 +1,14 @@
+# OS
+.DS_Store
+
+# Build output & cache
+dist
+.parcel-cache
+
+# Dependencies
+node_modules
+
+# Large binary assets — share these out-of-band (cloud drive, USB, etc.)
+erdtree/
+audio/
+design/

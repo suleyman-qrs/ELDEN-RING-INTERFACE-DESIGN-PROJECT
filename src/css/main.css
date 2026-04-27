@@ -1,0 +1,878 @@
+/* ======================================================
+   ELDEN RING — Hidetaka Miyazaki Web Experience
+   ====================================================== */
+
+/* ── Font ──────────────────────────────────────────── */
+
+@font-face {
+  font-family: "Optimus Princeps";
+  src:
+    local("OptimusPrinceps"),
+    local("Optimus Princeps"),
+    url("../fonts/OptimusPrinceps.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Optimus Princeps";
+  src:
+    local("OptimusPrincepsSemiBold"),
+    url("../fonts/OptimusPrincepsSemiBold.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Reset & Root ──────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --font-display:
+    "Optimus Princeps", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-serif: "Agmena Pro", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --gold: #ffd000;
+  --gold-dim: rgba(255, 208, 0, 0.55);
+  --glow-sm: 0 0 8px rgba(255, 208, 0, 0.5);
+  --glow-lg: 0 0 24px rgba(255, 208, 0, 0.45);
+  --white: #fff;
+  --black: #000;
+  --dark: #0a0a0a;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--black);
+  color: var(--white);
+  overflow-x: hidden;
+}
+
+/* ── Phase base ────────────────────────────────────── */
+
+.phase {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  min-height: 560px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* ── Scroll fade-in ────────────────────────────────── */
+
+.fade-in {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.9s ease,
+    transform 0.9s ease;
+}
+
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ======================================================
+   PHASE 1 — HERO
+   ====================================================== */
+
+.phase--hero {
+  background: var(--black);
+  flex-direction: column;
+}
+
+.hero-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 80% 80% at 50% 50%,
+    rgba(18, 15, 5, 0) 25%,
+    rgba(0, 0, 0, 0.9) 100%
+  );
+  pointer-events: none;
+}
+
+.hero-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -52%);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.5vh;
+  z-index: 1;
+}
+
+.hero-name {
+  font-family: var(--font-display);
+  font-size: clamp(10px, 1.1vw, 16px);
+  font-weight: 400;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+  text-shadow: var(--glow-sm);
+}
+
+.hero-quote {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(30px, 6vw, 88px);
+  line-height: 1.15;
+  color: var(--white);
+  text-shadow: var(--glow-lg);
+  text-align: center;
+}
+
+.hero-quote p {
+  margin-bottom: 0.5em;
+}
+
+.hero-attribution {
+  font-family: var(--font-serif);
+  font-size: clamp(13px, 1.3vw, 20px);
+  opacity: 0.5;
+  font-style: normal;
+  letter-spacing: 0.08em;
+}
+
+.hero-attribution cite {
+  font-style: normal;
+}
+
+.volume-notice {
+  position: absolute;
+  bottom: 9%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-serif);
+  font-size: clamp(11px, 1vw, 15px);
+  opacity: 0.35;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.volume-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.scroll-cta {
+  position: absolute;
+  bottom: clamp(16px, 4vh, 52px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  z-index: 1;
+}
+
+.scroll-chevron {
+  width: 10px;
+  height: 10px;
+  border-right: 1px solid rgba(255, 255, 255, 0.45);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+  transform: rotate(45deg);
+  animation: chevronBounce 2s ease-in-out infinite;
+}
+
+@keyframes chevronBounce {
+  0%,
+  100% {
+    transform: rotate(45deg) translateY(0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: rotate(45deg) translateY(6px);
+    opacity: 0.9;
+  }
+}
+
+.scroll-label {
+  font-family: var(--font-serif);
+  font-size: clamp(11px, 1.1vw, 16px);
+  letter-spacing: 0.14em;
+  opacity: 0.35;
+}
+
+/* ======================================================
+   PHASE 2a — BIOGRAPHY
+   ====================================================== */
+
+.phase--biography {
+  background: var(--black);
+}
+
+.bio-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url("../images/Image 20_0002_Layer 0.png");
+  background-size: cover;
+  background-position: center;
+  opacity: 0.07;
+}
+
+.bio-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    #000 0%,
+    rgba(0, 0, 0, 0.5) 50%,
+    #000 100%
+  );
+}
+
+.bio-text {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-serif);
+  font-size: clamp(15px, 1.8vw, 28px);
+  line-height: 1.75;
+  text-align: center;
+  color: var(--white);
+  opacity: 0.55;
+  text-shadow: var(--glow-sm);
+  max-width: min(620px, 84vw);
+}
+
+/* ======================================================
+   PHASE 2b — ROUNDTABLE HOLD
+   ====================================================== */
+
+.phase--roundtable {
+  background: var(--black);
+}
+
+.rt-layers {
+  position: absolute;
+  inset: 0;
+}
+
+.rt-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.5s ease;
+}
+
+.rt-layer--base {
+  opacity: 1;
+}
+
+.rt-layer--glow {
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+
+.rt-layer--hover {
+  opacity: 1;
+  cursor: pointer;
+  pointer-events: none;
+}
+
+.phase--roundtable.rt-awake .rt-layer--glow {
+  opacity: 0.9;
+  animation: rtGlowPulse 4s ease-in-out infinite;
+}
+
+.phase--roundtable.rt-awake .rt-layer--hover {
+  pointer-events: auto;
+}
+
+.phase--roundtable.rt-awake .rt-layer--hover:hover {
+  opacity: 1;
+}
+
+@keyframes rtGlowPulse {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.rt-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 65% 85% at 50% 50%,
+    transparent 25%,
+    rgba(0, 0, 0, 0.75) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.rt-hint {
+  position: absolute;
+  bottom: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-serif);
+  font-size: clamp(11px, 1.1vw, 16px);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--white);
+  opacity: 0;
+  z-index: 2;
+  transition: opacity 1s ease;
+  pointer-events: none;
+}
+
+.phase--roundtable.rt-awake .rt-hint {
+  animation: hintFade 4s ease-in-out 1.5s forwards;
+}
+
+@keyframes hintFade {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.4;
+  }
+  70% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
+/* ======================================================
+   PHASE 3 — CHOICE OVERLAY
+   ====================================================== */
+
+dialog.choice-overlay {
+  border: none;
+  background: rgba(0, 0, 0, 0.94);
+  outline: 1px solid rgba(255, 208, 0, 0.18);
+  outline-offset: 10px;
+  width: min(560px, 90vw);
+  padding: clamp(44px, 7vh, 80px) clamp(32px, 5vw, 64px);
+  box-shadow: 0 0 80px rgba(0, 0, 0, 0.95);
+}
+
+dialog[open].choice-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+}
+
+dialog.choice-overlay::backdrop {
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(3px);
+}
+
+.choice-prompt {
+  font-family: var(--font-serif);
+  font-size: clamp(18px, 2.2vw, 32px);
+  text-align: center;
+  color: var(--white);
+  text-shadow: var(--glow-sm);
+  letter-spacing: 0.04em;
+}
+
+.choice-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+
+.choice-btn {
+  width: 100%;
+  padding: 12px 20px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(104, 96, 81, 0.55) 0%,
+    rgba(174, 159, 112, 0.22) 50%,
+    rgba(243, 223, 143, 0) 100%
+  );
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: clamp(15px, 1.8vw, 26px);
+  color: var(--white);
+  text-shadow: 2px 1px 6px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.04em;
+  transition:
+    background 0.25s,
+    opacity 0.25s;
+}
+
+.choice-btn:hover {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(140, 126, 100, 0.68) 0%,
+    rgba(200, 182, 128, 0.32) 50%,
+    rgba(243, 223, 143, 0) 100%
+  );
+}
+
+.choice-btn--no {
+  opacity: 0.42;
+}
+
+.choice-btn--no:hover {
+  opacity: 0.72;
+}
+
+/* ======================================================
+   PHASE 4a — NARRATIVE SCROLL
+   ====================================================== */
+
+.scroll-section {
+  position: relative;
+}
+
+#narration-scroll {
+  height: calc(14 * 100vh);
+}
+
+.scroll-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--black);
+}
+
+.narration-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.nslide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  will-change: opacity;
+}
+
+.nslide-text {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(22px, 3.5vw, 56px);
+  line-height: 1.45;
+  text-align: center;
+  color: var(--white);
+  text-shadow: var(--glow-lg);
+  max-width: min(640px, 84vw);
+  letter-spacing: 0.04em;
+}
+
+/* ======================================================
+   PHASE 4b — ERDTREE CANVAS
+   ====================================================== */
+
+#erdtree-scroll {
+  height: 300vh;
+}
+
+.scroll-sticky--canvas {
+  background: var(--black);
+}
+
+#erdtree-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.erdtree-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.45) 0%,
+      transparent 18%,
+      transparent 80%,
+      rgba(0, 0, 0, 0.6) 100%
+    ),
+    radial-gradient(
+      ellipse 90% 90% at 50% 50%,
+      transparent 40%,
+      rgba(0, 0, 0, 0.25) 100%
+    );
+}
+
+/* ======================================================
+   PHASE 5 — ABOUT
+   ====================================================== */
+
+.about {
+  position: relative;
+  background: var(--black);
+  padding: clamp(80px, 14vh, 180px) clamp(32px, 8%, 120px) 80px;
+}
+
+.about-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.about-name {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-size: clamp(14px, 2vw, 30px);
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  margin-bottom: clamp(60px, 12vh, 160px);
+}
+
+.about-body {
+  display: flex;
+  gap: clamp(28px, 4vw, 60px);
+  align-items: flex-start;
+}
+
+.about-photo-wrap {
+  flex-shrink: 0;
+  width: 210px;
+  height: 231px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.about-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(150deg, #181614 0%, #0c0b0a 100%);
+}
+
+.about-bio {
+  flex: 1;
+  max-width: 680px;
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-size: clamp(13px, 1.5vw, 22px);
+  letter-spacing: 0.04em;
+  line-height: 1.72;
+  opacity: 0.52;
+}
+
+.about-bio em {
+  font-style: normal;
+}
+
+/* ======================================================
+   GAME CTA
+   ====================================================== */
+
+.game-cta-section {
+  background: var(--dark);
+  padding: clamp(80px, 12vh, 140px) clamp(32px, 8%, 120px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-cta-inner {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(40px, 6vh, 72px);
+}
+
+.game-cta-text {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(22px, 3.2vw, 48px);
+  line-height: 1.35;
+  color: var(--white);
+  text-shadow: var(--glow-sm);
+  max-width: min(720px, 90vw);
+}
+
+.platform-links {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.platform-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 2px;
+  text-decoration: none;
+  color: var(--white);
+  font-family: var(--font-serif);
+  font-size: clamp(13px, 1.3vw, 19px);
+  white-space: nowrap;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
+  transition:
+    background 0.25s,
+    border-color 0.25s;
+}
+
+.platform-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 208, 0, 0.35);
+}
+
+.platform-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.ext-icon {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  opacity: 0.35;
+  margin-left: 2px;
+}
+
+/* ======================================================
+   FOOTER
+   ====================================================== */
+
+#footer {
+  background: #0f0f0f;
+  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.8);
+  padding-top: clamp(60px, 10vh, 100px);
+}
+
+.footer-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 clamp(32px, 8%, 120px);
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.footer-logo-text {
+  font-family: var(--font-display);
+  font-size: clamp(18px, 2.4vw, 34px);
+  letter-spacing: 0.5em;
+  opacity: 0.2;
+  text-transform: uppercase;
+}
+
+.footer-cols {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 40px;
+}
+
+.footer-about,
+.footer-credits {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: clamp(12px, 1.1vw, 16px);
+  line-height: 1.65;
+  opacity: 0.38;
+  max-width: 420px;
+}
+
+.footer-credits {
+  text-align: right;
+}
+
+.footer-bar {
+  margin-top: 48px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px clamp(32px, 8%, 120px);
+}
+
+.footer-bar p {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: clamp(11px, 0.95vw, 14px);
+  opacity: 0.28;
+  text-align: center;
+  letter-spacing: 0.06em;
+}
+
+.footer-bar strong {
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+
+/* ======================================================
+   SIDE NAVIGATION
+   ====================================================== */
+
+.sidenav {
+  position: fixed;
+  right: 36px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 300;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.sidenav.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidenav-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.nav-dot {
+  position: relative;
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.28);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background 0.3s,
+    transform 0.3s,
+    box-shadow 0.3s;
+}
+
+.nav-dot::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+}
+
+.nav-dot.active {
+  background: var(--gold);
+  box-shadow: 0 0 8px rgba(255, 208, 0, 0.8);
+  transform: scale(2.2);
+}
+
+.nav-label {
+  position: absolute;
+  right: calc(100% + 16px);
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-serif);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: var(--white);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.sidenav-list li:hover .nav-label {
+  opacity: 0.55;
+}
+
+.sidenav-list li:has(.nav-dot.active) .nav-label {
+  opacity: 0.85;
+  color: var(--gold-dim);
+}
+
+/* ======================================================
+   GLOBAL FADE OVERLAY
+   ====================================================== */
+
+.fade-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--black);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 500;
+  transition: opacity 0.7s ease;
+}
+
+.fade-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ======================================================
+   RESPONSIVE
+   ====================================================== */
+
+@media (max-width: 768px) {
+  .sidenav {
+    right: 14px;
+  }
+  .nav-label {
+    display: none;
+  }
+
+  .about-body {
+    flex-direction: column;
+  }
+
+  .about-photo-wrap {
+    width: 140px;
+    height: 154px;
+  }
+
+  .footer-cols {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .footer-credits {
+    text-align: left;
+  }
+
+  .platform-links {
+    gap: 12px;
+  }
+
+  .platform-btn {
+    padding: 10px 16px;
+  }
+}

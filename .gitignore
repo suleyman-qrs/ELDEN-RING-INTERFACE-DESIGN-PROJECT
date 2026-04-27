@@ -10,5 +10,6 @@ node_modules
 
 # Large binary assets — share these out-of-band (cloud drive, USB, etc.)
 erdtree/
+Scenes/
 audio/
 design/

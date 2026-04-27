@@ -25,12 +25,15 @@ class AudioController {
       "wheel",
       "pointerdown",
     ];
+    this._unlockCallbacks = [];
     const unlock = () => {
       if (this.unlocked) return;
       this.unlocked = true;
       if (this._pendingBgm && this.bgm) {
         this._tryPlay(this.bgm);
       }
+      for (const cb of this._unlockCallbacks) cb();
+      this._unlockCallbacks = [];
       for (const evt of UNLOCK_EVENTS) {
         document.removeEventListener(evt, unlock);
       }
@@ -146,6 +149,14 @@ class AudioController {
     if (!this.dialogue) return;
     this.dialogue.pause();
     this.dialogue = null;
+  }
+
+  onUnlock(cb) {
+    if (this.unlocked) {
+      cb();
+    } else {
+      this._unlockCallbacks.push(cb);
+    }
   }
 }
 
@@ -355,16 +366,25 @@ class ErdtreePlayer {
 ────────────────────────────────────────────────────── */
 
 // Derive chapter cues from SCENES — one cue fires at the first frame of each scene.
+// "Giving life" has no dedicated scene folder so it's inserted as a mid-scene-01 cue.
 const CHAPTER_CUES = (() => {
   let frame = 0;
-  return SCENES.map((s) => {
+  const cues = SCENES.map((s) => {
     const cue = { frame, audio: s.audio, text: s.text, loop: s.loop || false };
     frame += s.count;
     return cue;
   });
+  cues.splice(1, 0, {
+    frame: 27,
+    audio: ["audio/dialogue/giving life its fullest brilliance.wav"],
+    text: "Giving life its<br>fullest brilliance.",
+  });
+  return cues;
 })();
 
 class ErdtreeHScroll {
+  static FPS = 6; // cinematic playback rate
+
   constructor(audio) {
     this.section = document.getElementById("erdtree-scroll");
     this.stage = document.getElementById("erdtree-stage");
@@ -373,26 +393,32 @@ class ErdtreeHScroll {
     this.audio = audio;
     this.chapter = -1;
 
+    this._rafId = null;
+    this._lastTs = null;
+    this._pauseTimer = null;
+    this._tick = this._tick.bind(this);
+
     this.player.init();
 
-    // Show/hide the fixed canvas overlay as the section enters/leaves the viewport.
+    // Show/hide canvas overlay; start/stop auto-play as section enters/leaves view.
     const io = new IntersectionObserver(
       ([entry]) => {
         this.stage.classList.toggle("active", entry.isIntersecting);
         if (entry.isIntersecting) {
           this._onScroll();
+          this._startPlay();
         } else {
           this.subtitle.classList.remove("visible");
-          this.chapter = -1; // reset so cues re-fire on re-entry
+          this.chapter = -1;
+          this._stopPlay();
         }
       },
       { threshold: 0.1 },
     );
     io.observe(this.section);
 
-    // Redirect vertical wheel to horizontal scroll, but only while the section
-    // is actually filling the viewport (rect guard prevents premature intercept
-    // while the page is still scrolling the section into/out of view).
+    // Redirect vertical wheel to horizontal scroll while section fills viewport.
+    // Pause auto-play while the user is manually scrubbing.
     window.addEventListener(
       "wheel",
       (e) => {
@@ -406,6 +432,7 @@ class ErdtreeHScroll {
         if ((goRight || goLeft) && Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
           e.preventDefault();
           this.section.scrollLeft += e.deltaY;
+          this._onUserScrub();
         }
       },
       { passive: false },
@@ -415,6 +442,65 @@ class ErdtreeHScroll {
       passive: true,
     });
   }
+
+  // ── Auto-play ────────────────────────────────────────
+
+  _startPlay() {
+    if (this._rafId) return;
+    this._lastTs = null;
+    this._rafId = requestAnimationFrame(this._tick);
+  }
+
+  _stopPlay() {
+    if (this._rafId) cancelAnimationFrame(this._rafId);
+    this._rafId = null;
+    clearTimeout(this._pauseTimer);
+    this._pauseTimer = null;
+  }
+
+  _onUserScrub() {
+    // Pause auto-play while scrubbing; resume 2 s after last gesture.
+    if (this._rafId) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = null;
+    }
+    clearTimeout(this._pauseTimer);
+    this._pauseTimer = setTimeout(() => {
+      const maxScroll = this.section.scrollWidth - this.section.clientWidth;
+      if (this.section.scrollLeft < maxScroll - 1) this._startPlay();
+    }, 2000);
+  }
+
+  _tick(ts) {
+    if (!this._lastTs) this._lastTs = ts;
+    const elapsed = ts - this._lastTs;
+    const frameDuration = 1000 / ErdtreeHScroll.FPS;
+
+    if (elapsed >= frameDuration) {
+      const frames = Math.floor(elapsed / frameDuration);
+      this._lastTs = ts - (elapsed % frameDuration);
+
+      const maxScroll = this.section.scrollWidth - this.section.clientWidth;
+      if (maxScroll <= 0) {
+        this._rafId = requestAnimationFrame(this._tick);
+        return;
+      }
+
+      const pixPerFrame = maxScroll / (TOTAL_FRAMES - 1);
+      const next = this.section.scrollLeft + frames * pixPerFrame;
+
+      if (next >= maxScroll) {
+        this.section.scrollLeft = maxScroll;
+        this._stopPlay();
+        return;
+      }
+      this.section.scrollLeft = next;
+    }
+
+    this._rafId = requestAnimationFrame(this._tick);
+  }
+
+  // ── Cue logic (unchanged) ────────────────────────────
 
   _onScroll() {
     const maxScroll = this.section.scrollWidth - this.section.clientWidth;
@@ -550,6 +636,32 @@ class RoundtableHold {
     this.section = document.getElementById("roundtable");
     this.audio = audio;
     this.awoken = false;
+
+    // Reset when the section leaves view so audio replays on re-entry / refresh.
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting && this.awoken) {
+          this.awoken = false;
+          this.section.classList.remove("rt-awake");
+        }
+      },
+      { threshold: 0.5 },
+    );
+    io.observe(this.section);
+  }
+
+  _playAudio() {
+    this.audio.startBgm("audio/music/1-08 Roundtable Hold.mp3", 0.4);
+    this.audio.playSfxSimultaneous(
+      ["audio/sfx/walking.wav", "audio/sfx/Roundtable sfx.wav"],
+      0.7,
+    );
+    setTimeout(() => {
+      this.audio.playSfxSequence([
+        "audio/dialogue/sigh.wav",
+        "audio/dialogue/my oh my.wav",
+      ]);
+    }, 800);
   }
 
   tryAwaken(scrollY, vh) {
@@ -559,24 +671,15 @@ class RoundtableHold {
       this.awoken = true;
       this.section.classList.add("rt-awake");
 
-      // Snap the section flush to the viewport top, then lock scroll so
-      // it remains fixed until the player makes a choice.
+      // Snap flush to viewport top, then lock page scroll until choice is made.
       this.section.scrollIntoView({ behavior: "smooth", block: "start" });
       setTimeout(() => {
         document.body.style.overflow = "hidden";
       }, 600);
 
-      this.audio.startBgm("audio/music/1-08 Roundtable Hold.mp3", 0.4);
-      this.audio.playSfxSimultaneous(
-        ["audio/sfx/walking.wav", "audio/sfx/Roundtable sfx.wav"],
-        0.7,
-      );
-      setTimeout(() => {
-        this.audio.playSfxSequence([
-          "audio/dialogue/sigh.wav",
-          "audio/dialogue/my oh my.wav",
-        ]);
-      }, 800);
+      // Defer audio until the browser audio context is unlocked by a user gesture.
+      // onUnlock fires immediately if already unlocked, otherwise queues the call.
+      this.audio.onUnlock(() => this._playAudio());
     }
   }
 }

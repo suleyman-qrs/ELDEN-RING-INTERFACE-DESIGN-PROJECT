@@ -17,7 +17,6 @@ class AudioController {
     this.dialogue = null;
     this.unlocked = false;
     this._pendingBgm = false;
-    this._pendingQueue = [];
 
     const UNLOCK_EVENTS = [
       "click",
@@ -30,7 +29,7 @@ class AudioController {
       if (this.unlocked) return;
       this.unlocked = true;
       if (this._pendingBgm && this.bgm) {
-        this.bgm.play().catch(() => {});
+        this._tryPlay(this.bgm);
       }
       for (const evt of UNLOCK_EVENTS) {
         document.removeEventListener(evt, unlock);
@@ -41,13 +40,33 @@ class AudioController {
     }
   }
 
+  _tryPlay(audio) {
+    const result = audio.play();
+    if (result !== undefined) {
+      result.catch((err) => {
+        console.warn("Audio play failed:", err);
+        // Retry once canplay fires in case the file is still loading
+        audio.addEventListener(
+          "canplay",
+          () =>
+            audio.play().catch((e) => console.warn("Audio retry failed:", e)),
+          { once: true },
+        );
+      });
+    }
+  }
+
   startBgm(src, volume = 0.4) {
+    if (this.bgm && !this.bgm.paused) {
+      this.bgm.pause();
+    }
     this.bgm = new Audio(src);
     this.bgm.loop = true;
     this.bgm.volume = volume;
     this.bgm.preload = "auto";
+    this.bgm.load();
     if (this.unlocked) {
-      this.bgm.play().catch(() => {});
+      this._tryPlay(this.bgm);
     } else {
       this._pendingBgm = true;
     }
@@ -96,7 +115,8 @@ class AudioController {
     }
   }
 
-  playDialogueSequence(srcs) {
+  // loop: when the final track ends, restart from the top of srcs
+  playDialogueSequence(srcs, loop = false) {
     if (this.dialogue) {
       this.dialogue.pause();
       this.dialogue.currentTime = 0;
@@ -110,7 +130,13 @@ class AudioController {
     if (rest.length) {
       this.dialogue.addEventListener(
         "ended",
-        () => this.playDialogueSequence(rest),
+        () => this.playDialogueSequence(rest, loop),
+        { once: true },
+      );
+    } else if (loop) {
+      this.dialogue.addEventListener(
+        "ended",
+        () => this.playDialogueSequence(srcs, loop),
         { once: true },
       );
     }
@@ -124,14 +150,114 @@ class AudioController {
 }
 
 /* ──────────────────────────────────────────────────────
-   ERDTREE CANVAS PLAYER
+   SCENE DATA
+   12 PNG sequences, one per narration line.
+   Each entry maps to Scenes/<dir>/<prefix>NN.png.
+────────────────────────────────────────────────────── */
+
+const SCENES = [
+  {
+    dir: "Scenes/01_Elden_Ring",
+    prefix: "Elden_ring",
+    count: 55,
+    audio: ["audio/dialogue/Elden Ring.wav"],
+    text: "Elden Ring. O, Elden Ring.",
+  },
+  {
+    dir: "Scenes/02_Its_Gold",
+    prefix: "its_Gold_commanded",
+    count: 59,
+    audio: ["audio/dialogue/its gold commanded the very stars.wav"],
+    text: "Its gold commanded<br>the very stars,",
+  },
+  {
+    dir: "Scenes/03_Shattered",
+    prefix: "shattered",
+    count: 63,
+    audio: ["audio/dialogue/Shattered, by someone, or something.wav"],
+    text: "Shattered, by someone,<br>or something.",
+  },
+  {
+    dir: "Scenes/04_Godrick",
+    prefix: "godrick",
+    count: 58,
+    audio: ["audio/dialogue/Godrick, the feeble.wav"],
+    text: "Godrick, the feeble.",
+  },
+  {
+    dir: "Scenes/05_Malenia",
+    prefix: "malenia",
+    count: 60,
+    audio: ["audio/dialogue/Malenia, decayed from birth.wav"],
+    text: "Malenia, decayed from birth.",
+  },
+  {
+    dir: "Scenes/06_General_Radah",
+    prefix: "general_radahn",
+    count: 47,
+    audio: ["audio/dialogue/General Radahn, slayer of giants.wav"],
+    text: "General Radahn,<br>slayer of giants.",
+  },
+  {
+    dir: "Scenes/07_Rykard",
+    prefix: "rykard",
+    count: 61,
+    audio: ["audio/dialogue/Rykard, the tyrannical serpent.wav"],
+    text: "Rykard,<br>the tyrannical serpent.",
+  },
+  {
+    dir: "Scenes/08_Morgott",
+    prefix: "morgott",
+    count: 64,
+    audio: ["audio/dialogue/And Morgott, Prince of the Omen.wav"],
+    text: "And Morgott,<br>Prince of the Omen.",
+  },
+  {
+    dir: "Scenes/09_Each_Inheriting",
+    prefix: "each_inheriting",
+    count: 47,
+    audio: [
+      "audio/dialogue/Each, inheriting their own shard, played a part in the Shattering.wav",
+    ],
+    text: "Each, inheriting their own shard,<br>played a part in the Shattering,",
+  },
+  {
+    dir: "Scenes/10_A_War",
+    prefix: "a_war",
+    count: 43,
+    audio: ["audio/dialogue/a war with no end, and no victor.wav"],
+    text: "a war with no end,<br>and no victor.",
+  },
+  {
+    dir: "Scenes/11_and_so_the_two_Fingers",
+    prefix: "and_so_the_two_fingers",
+    count: 45,
+    audio: [
+      "audio/dialogue/And so the Two Fingers call upon ye, the Tarnished.wav",
+    ],
+    text: "And so the Two Fingers<br>call upon ye, the Tarnished.",
+  },
+  {
+    dir: "Scenes/12_To_cross_the_fog",
+    prefix: "to_cross_the_fog",
+    count: 92,
+    audio: [
+      "audio/dialogue/To cross the Sea of Fog, to the Lands Between To seek the Elden Ring. Seek the Elden Ring.wav",
+    ],
+    text: "To cross the Sea of Fog,<br>to the Lands Between.<br><br>To seek the Elden Ring.<br>Seek the Elden Ring.",
+    loop: true,
+  },
+];
+
+const TOTAL_FRAMES = SCENES.reduce((sum, s) => sum + s.count, 0);
+
+/* ──────────────────────────────────────────────────────
+   NARRATION CANVAS PLAYER
    Windowed frame cache — keeps ±25 frames in memory,
    evicting the rest. Preloads ahead on each seek.
 ────────────────────────────────────────────────────── */
 
 class ErdtreePlayer {
-  static FRAME_COUNT = 1340;
-  static BASE_IDX = 10000;
   static AHEAD = 22;
   static BEHIND = 6;
 
@@ -155,11 +281,19 @@ class ErdtreePlayer {
   }
 
   _src(i) {
-    return `erdtree/Comp ${ErdtreePlayer.BASE_IDX + i}.png`;
+    let g = i;
+    for (const scene of SCENES) {
+      if (g < scene.count) {
+        return `${scene.dir}/${scene.prefix}${String(g).padStart(2, "0")}.png`;
+      }
+      g -= scene.count;
+    }
+    const last = SCENES[SCENES.length - 1];
+    return `${last.dir}/${last.prefix}${String(last.count - 1).padStart(2, "0")}.png`;
   }
 
   _load(i) {
-    if (i < 0 || i >= ErdtreePlayer.FRAME_COUNT) return;
+    if (i < 0 || i >= TOTAL_FRAMES) return;
     if (this.cache.has(i) || this.loading.has(i)) return;
     this.loading.add(i);
     const img = new Image();
@@ -194,12 +328,9 @@ class ErdtreePlayer {
   }
 
   seek(frameIdx) {
-    frameIdx = Math.max(0, Math.min(ErdtreePlayer.FRAME_COUNT - 1, frameIdx));
+    frameIdx = Math.max(0, Math.min(TOTAL_FRAMES - 1, frameIdx));
     this._evict(frameIdx);
-    const end = Math.min(
-      frameIdx + ErdtreePlayer.AHEAD,
-      ErdtreePlayer.FRAME_COUNT - 1,
-    );
+    const end = Math.min(frameIdx + ErdtreePlayer.AHEAD, TOTAL_FRAMES - 1);
     for (let i = frameIdx; i <= end; i++) this._load(i);
     if (frameIdx !== this.currentFrame) {
       this.currentFrame = frameIdx;
@@ -209,94 +340,29 @@ class ErdtreePlayer {
   }
 
   init() {
-    for (let i = 0; i < Math.min(30, ErdtreePlayer.FRAME_COUNT); i++) {
+    for (let i = 0; i < Math.min(30, TOTAL_FRAMES); i++) {
       this._load(i);
     }
   }
 }
 
 /* ──────────────────────────────────────────────────────
-   ERDTREE HORIZONTAL SCROLL
-   Drives the 1340-frame PNG animation via scrollLeft.
+   NARRATION HORIZONTAL SCROLL
+   Drives the multi-scene PNG animation via scrollLeft.
    Displays subtitles at bottom-center.
-   Triggers dialogue audio per chapter.
+   Triggers dialogue audio per scene.
    Converts vertical wheel → horizontal scroll.
 ────────────────────────────────────────────────────── */
 
-// Frame cue points (0-based index within the 1340-frame sequence).
-// File Comp 10000.png = index 0, Comp 11339.png = index 1339.
-// "Frame 1000" in the brief is treated as Comp 10000 (index 0) — first frame.
-const CHAPTER_CUES = [
-  {
-    frame: 0,
-    audio: ["audio/dialogue/Elden Ring.wav"],
-    text: "Elden Ring,",
-  },
-  {
-    frame: 133,
-    audio: [
-      "audio/dialogue/its gold commanded the very stars.wav",
-      "audio/dialogue/giving life its fullest brilliance.wav",
-    ],
-    text: "Its gold commanded<br>the very stars,",
-  },
-  {
-    frame: 343,
-    audio: ["audio/dialogue/Shattered, by someone, or something.wav"],
-    text: "Shattered, by someone,<br>or something.",
-  },
-  {
-    frame: 476,
-    audio: ["audio/dialogue/Godrick, the feeble.wav"],
-    text: "Godrick, the feeble.",
-  },
-  {
-    frame: 548,
-    audio: ["audio/dialogue/Malenia, decayed from birth.wav"],
-    text: "Malenia, decayed from birth.",
-  },
-  {
-    frame: 648,
-    audio: ["audio/dialogue/General Radahn, slayer of giants.wav"],
-    text: "General Radahn,<br>slayer of giants.",
-  },
-  {
-    frame: 767,
-    audio: ["audio/dialogue/Rykard, the tyrannical serpent.wav"],
-    text: "Rykard,<br>the tyrannical serpent.",
-  },
-  {
-    frame: 863,
-    audio: ["audio/dialogue/And Morgott, Prince of the Omen.wav"],
-    text: "And Morgott,<br>Prince of the Omen.",
-  },
-  {
-    frame: 984,
-    audio: [
-      "audio/dialogue/Each, inheriting their own shard, played a part in the Shattering.wav",
-    ],
-    text: "Each, inheriting their own shard,<br>played a part in the Shattering,",
-  },
-  {
-    frame: 1168,
-    audio: ["audio/dialogue/a war with no end, and no victor.wav"],
-    text: "a war with no end,<br>and no victor.",
-  },
-  {
-    frame: 1220,
-    audio: [
-      "audio/dialogue/And so the Two Fingers call upon ye, the Tarnished.wav",
-    ],
-    text: "And so the Two Fingers<br>call upon ye, the Tarnished.",
-  },
-  {
-    frame: 1290,
-    audio: [
-      "audio/dialogue/To cross the Sea of Fog, to the Lands Between To seek the Elden Ring. Seek the Elden Ring.wav",
-    ],
-    text: "To cross the Sea of Fog,<br>to the Lands Between.<br><br>To seek the Elden Ring.<br>Seek the Elden Ring.",
-  },
-];
+// Derive chapter cues from SCENES — one cue fires at the first frame of each scene.
+const CHAPTER_CUES = (() => {
+  let frame = 0;
+  return SCENES.map((s) => {
+    const cue = { frame, audio: s.audio, text: s.text, loop: s.loop || false };
+    frame += s.count;
+    return cue;
+  });
+})();
 
 class ErdtreeHScroll {
   constructor(audio) {
@@ -353,7 +419,7 @@ class ErdtreeHScroll {
   _onScroll() {
     const maxScroll = this.section.scrollWidth - this.section.clientWidth;
     const progress = maxScroll > 0 ? this.section.scrollLeft / maxScroll : 0;
-    const frame = Math.round(progress * (ErdtreePlayer.FRAME_COUNT - 1));
+    const frame = Math.round(progress * (TOTAL_FRAMES - 1));
 
     this.player.seek(frame);
 
@@ -375,7 +441,10 @@ class ErdtreeHScroll {
           this.subtitle.classList.add("visible");
         }),
       );
-      this.audio.playDialogueSequence(CHAPTER_CUES[chapterIdx].audio);
+      this.audio.playDialogueSequence(
+        CHAPTER_CUES[chapterIdx].audio,
+        CHAPTER_CUES[chapterIdx].loop || false,
+      );
     }
   }
 }
@@ -442,6 +511,8 @@ class ChoiceOverlay {
 
   _onClose() {
     this.glowImg.style.removeProperty("opacity");
+    // Restore page scroll locked by RoundtableHold
+    document.body.style.overflow = "";
     const answer = this.dialog.returnValue;
     if (answer === "yes") {
       this._transitionToNarration();
@@ -469,6 +540,8 @@ class ChoiceOverlay {
 /* ──────────────────────────────────────────────────────
    ROUNDTABLE HOLD — wake-up sequence
    Triggers once when the section enters the viewport.
+   Snaps section into view and locks page scroll so it
+   stays fixed until the choice dialog is dismissed.
    Plays BGM → sigh → my_oh_my in sequence.
 ────────────────────────────────────────────────────── */
 
@@ -485,6 +558,14 @@ class RoundtableHold {
     if (rect.top < vh * 0.6) {
       this.awoken = true;
       this.section.classList.add("rt-awake");
+
+      // Snap the section flush to the viewport top, then lock scroll so
+      // it remains fixed until the player makes a choice.
+      this.section.scrollIntoView({ behavior: "smooth", block: "start" });
+      setTimeout(() => {
+        document.body.style.overflow = "hidden";
+      }, 600);
+
       this.audio.startBgm("audio/music/1-08 Roundtable Hold.mp3", 0.4);
       this.audio.playSfxSimultaneous(
         ["audio/sfx/walking.wav", "audio/sfx/Roundtable sfx.wav"],
@@ -513,6 +594,9 @@ class EldenRingApp {
     this.erdtree = new ErdtreeHScroll(this.audio);
 
     this.fadeEls = Array.from(document.querySelectorAll(".fade-in"));
+    this.volumeNotice = document.querySelector(".volume-notice");
+    this.scrollCta = document.querySelector(".scroll-cta");
+    this._heroEl = document.getElementById("hero");
 
     this._ticking = false;
     window.addEventListener("scroll", () => this._scheduleUpdate(), {
@@ -535,6 +619,12 @@ class EldenRingApp {
   _update() {
     const scrollY = window.scrollY;
     const vh = window.innerHeight;
+
+    // Fade out hero prompts once the user has scrolled past the hero section
+    const heroFadeThreshold = this._heroEl.offsetHeight * 0.5;
+    const heroDone = scrollY > heroFadeThreshold;
+    this.volumeNotice.classList.toggle("hero-prompt--hidden", heroDone);
+    this.scrollCta.classList.toggle("hero-prompt--hidden", heroDone);
 
     this.sidenav.update(scrollY, vh);
     this.roundtable.tryAwaken(scrollY, vh);

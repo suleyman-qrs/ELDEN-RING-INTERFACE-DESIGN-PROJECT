@@ -318,7 +318,12 @@ body {
   margin: 0 auto 2.4em;
   width: 56px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(172, 138, 72, 0.55), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(172, 138, 72, 0.55),
+    transparent
+  );
 }
 
 /* ======================================================
@@ -446,10 +451,10 @@ dialog.choice-overlay {
   /* Ornate parchment border */
   border: 1px solid rgba(172, 138, 72, 0.55);
   box-shadow:
-    0 0 0 3px  rgba(14, 10, 3, 1),
-    0 0 0 5px  rgba(144, 114, 56, 0.45),
-    0 0 0 7px  rgba(14, 10, 3, 0.98),
-    0 0 80px   rgba(0, 0, 0, 0.98),
+    0 0 0 3px rgba(14, 10, 3, 1),
+    0 0 0 5px rgba(144, 114, 56, 0.45),
+    0 0 0 7px rgba(14, 10, 3, 0.98),
+    0 0 80px rgba(0, 0, 0, 0.98),
     inset 0 0 40px rgba(0, 0, 0, 0.5);
 }
 
@@ -480,7 +485,12 @@ dialog.choice-overlay::backdrop {
   margin: 20px auto 0;
   width: 72px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(172, 138, 72, 0.45), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(172, 138, 72, 0.45),
+    transparent
+  );
 }
 
 .choice-form {
@@ -569,13 +579,13 @@ dialog.choice-overlay::backdrop {
   /* Multi-layer ornate border — warm parchment tones */
   box-shadow:
     inset 0 0 40px rgba(0, 0, 0, 0.6),
-    0 0 0 1px  rgba(172, 138, 72, 0.95),
-    0 0 0 4px  rgba(14, 10, 3, 1),
-    0 0 0 6px  rgba(144, 114, 56, 0.8),
-    0 0 0 9px  rgba(14, 10, 3, 0.98),
+    0 0 0 1px rgba(172, 138, 72, 0.95),
+    0 0 0 4px rgba(14, 10, 3, 1),
+    0 0 0 6px rgba(144, 114, 56, 0.8),
+    0 0 0 9px rgba(14, 10, 3, 0.98),
     0 0 0 11px rgba(110, 86, 38, 0.55),
     0 18px 90px rgba(0, 0, 0, 0.98),
-    0 0 180px  rgba(0, 0, 0, 0.7);
+    0 0 180px rgba(0, 0, 0, 0.7);
 }
 
 /* Inner decorative rule */
@@ -596,10 +606,26 @@ dialog.choice-overlay::backdrop {
   pointer-events: none;
   z-index: 14;
   background:
-    radial-gradient(ellipse 55% 45% at   0%   0%, rgba(45, 28, 5, 0.4) 0%, transparent 100%),
-    radial-gradient(ellipse 55% 45% at 100%   0%, rgba(45, 28, 5, 0.4) 0%, transparent 100%),
-    radial-gradient(ellipse 55% 45% at   0% 100%, rgba(45, 28, 5, 0.4) 0%, transparent 100%),
-    radial-gradient(ellipse 55% 45% at 100% 100%, rgba(45, 28, 5, 0.4) 0%, transparent 100%);
+    radial-gradient(
+      ellipse 55% 45% at 0% 0%,
+      rgba(45, 28, 5, 0.4) 0%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 100% 0%,
+      rgba(45, 28, 5, 0.4) 0%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 0% 100%,
+      rgba(45, 28, 5, 0.4) 0%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 100% 100%,
+      rgba(45, 28, 5, 0.4) 0%,
+      transparent 100%
+    );
 }
 
 #erdtree-canvas {
@@ -685,7 +711,9 @@ dialog.choice-overlay::backdrop {
   border: 1px solid rgba(172, 138, 72, 0.38);
   border-radius: 2px;
   overflow: hidden;
-  box-shadow: 0 0 0 3px rgba(14, 10, 3, 1), 0 0 0 4px rgba(144, 114, 56, 0.25);
+  box-shadow:
+    0 0 0 3px rgba(14, 10, 3, 1),
+    0 0 0 4px rgba(144, 114, 56, 0.25);
 }
 
 .about-photo {
@@ -738,7 +766,12 @@ dialog.choice-overlay::backdrop {
   display: block;
   width: 72px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(172, 138, 72, 0.5), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(172, 138, 72, 0.5),
+    transparent
+  );
   margin-bottom: calc(-1 * clamp(20px, 3vh, 36px));
 }
 

@@ -110,9 +110,13 @@ class AudioController {
       sfx.volume = volume;
       sfx.play().catch(() => {});
       this.sfxList.push(sfx);
-      sfx.addEventListener("ended", () => {
-        this.sfxList = this.sfxList.filter((s) => s !== sfx);
-      }, { once: true });
+      sfx.addEventListener(
+        "ended",
+        () => {
+          this.sfxList = this.sfxList.filter((s) => s !== sfx);
+        },
+        { once: true },
+      );
     }
   }
 
@@ -302,7 +306,7 @@ class ErdtreePlayer {
 
   _resize() {
     const p = this.canvas.parentElement;
-    this.canvas.width  = p ? p.clientWidth  : window.innerWidth;
+    this.canvas.width = p ? p.clientWidth : window.innerWidth;
     this.canvas.height = p ? p.clientHeight : window.innerHeight;
     if (this.currentFrame >= 0) {
       const img = this.cache.get(this.currentFrame);
@@ -527,10 +531,10 @@ class ErdtreeHScroll {
     clearTimeout(this._slideTimer);
     const el = this._canvasEl;
     const outX = direction === 1 ? "-100%" : "100%";
-    const inX  = direction === 1 ? "100%"  : "-100%";
+    const inX = direction === 1 ? "100%" : "-100%";
 
     el.style.transition = "transform 0.3s ease-in";
-    el.style.transform  = `translateX(${outX})`;
+    el.style.transform = `translateX(${outX})`;
 
     this._slideTimer = setTimeout(() => {
       // First frame of the new scene is ready; fire cues now so
@@ -539,13 +543,13 @@ class ErdtreeHScroll {
       this._checkChapterCues();
 
       el.style.transition = "none";
-      el.style.transform  = `translateX(${inX})`;
+      el.style.transform = `translateX(${inX})`;
       void el.offsetWidth; // force reflow so the transition fires
       el.style.transition = "transform 0.35s ease-out";
-      el.style.transform  = "translateX(0)";
+      el.style.transform = "translateX(0)";
 
       this._lastTs = null;
-      this._rafId  = requestAnimationFrame(this._tick);
+      this._rafId = requestAnimationFrame(this._tick);
 
       this._slideTimer = setTimeout(() => {
         el.style.transition = "";
@@ -668,12 +672,12 @@ class ChoiceOverlay {
   }
 
   _open() {
-    this.glowImg.style.opacity = "1";
+    this.hoverImg.style.opacity = "1";
     this.dialog.showModal();
   }
 
   _onClose() {
-    this.glowImg.style.removeProperty("opacity");
+    this.hoverImg.style.removeProperty("opacity");
     // Restore page scroll locked by RoundtableHold
     document.body.style.overflow = "";
     const answer = this.dialog.returnValue;
@@ -785,7 +789,8 @@ class GraceEmbers {
   _resize() {
     const rect = this._canvas.parentElement.getBoundingClientRect();
     this._W = this._canvas.width = Math.round(rect.width) || window.innerWidth;
-    this._H = this._canvas.height = Math.round(rect.height) || window.innerHeight;
+    this._H = this._canvas.height =
+      Math.round(rect.height) || window.innerHeight;
   }
 
   _newParticle(distributed = false) {
@@ -820,19 +825,25 @@ class GraceEmbers {
 
     this._particles = this._particles.filter((p) => {
       p.y -= p.vy * dt;
-      p.x += Math.sin(t * p.driftFreq * Math.PI * 2 + p.driftPhase) * p.driftAmp * dt;
+      p.x +=
+        Math.sin(t * p.driftFreq * Math.PI * 2 + p.driftPhase) *
+        p.driftAmp *
+        dt;
 
       p.alpha += p.fadeSpeed * p.fadeDir * dt;
-      if (p.alpha >= p.maxAlpha) { p.alpha = p.maxAlpha; p.fadeDir = -1; }
+      if (p.alpha >= p.maxAlpha) {
+        p.alpha = p.maxAlpha;
+        p.fadeDir = -1;
+      }
       if (p.alpha <= 0 && p.fadeDir < 0) return false;
       p.alpha = Math.max(0, p.alpha);
       if (p.y < -p.size * 8) return false;
 
       const r = p.size * 5;
       const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-      grd.addColorStop(0,   `rgba(255, 225, 120, ${p.alpha})`);
+      grd.addColorStop(0, `rgba(255, 225, 120, ${p.alpha})`);
       grd.addColorStop(0.3, `rgba(212, 165,  40, ${p.alpha * 0.65})`);
-      grd.addColorStop(1,   `rgba(160, 100,  10, 0)`);
+      grd.addColorStop(1, `rgba(160, 100,  10, 0)`);
       ctx.beginPath();
       ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
       ctx.fillStyle = grd;
@@ -859,7 +870,9 @@ class EldenRingApp {
     this.roundtable = new RoundtableHold(this.audio);
     this.choice = new ChoiceOverlay(this.audio);
     this.erdtree = new ErdtreeHScroll(this.audio);
-    document.querySelectorAll(".grace-embers").forEach((c) => new GraceEmbers(c));
+    document
+      .querySelectorAll(".grace-embers")
+      .forEach((c) => new GraceEmbers(c));
 
     this.fadeEls = Array.from(document.querySelectorAll(".fade-in"));
     this.volumeNotice = document.querySelector(".volume-notice");

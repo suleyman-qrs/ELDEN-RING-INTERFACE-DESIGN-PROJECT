@@ -440,7 +440,7 @@ class ErdtreeHScroll {
 
     this.player.init();
 
-    // Show/hide canvas overlay as section enters/leaves the viewport.
+    // Show/hide canvas map as section enters/leaves the viewport.
     // Stage uses a higher threshold (0.6) so it fades out quickly once the
     // user scrolls past — without this the fixed canvas blocks visual feedback.
     const io = new IntersectionObserver(
@@ -653,16 +653,16 @@ class SideNav {
 }
 
 /* ──────────────────────────────────────────────────────
-   CHOICE OVERLAY (Phase 3)
+   CHOICE MAP (Phase 3)
    Shows dialog on Layer 6 click.
    "Yes" → fade to black → scroll to Erdtree sequence.
    "No"  → smooth scroll to footer.
 ────────────────────────────────────────────────────── */
 
-class ChoiceOverlay {
+class ChoiceMap {
   constructor(audio) {
-    this.dialog = document.getElementById("choice-overlay");
-    this.fadeEl = document.getElementById("fade-overlay");
+    this.dialog = document.getElementById("choice-map");
+    this.fadeEl = document.getElementById("fade-map");
     this.hoverImg = document.getElementById("rt-hover");
     this.glowImg = document.getElementById("rt-glow");
     this.audio = audio;
@@ -691,7 +691,7 @@ class ChoiceOverlay {
   }
 
   _transitionToNarration() {
-    // Cut all roundtable audio immediately — the black overlay provides the transition.
+    // Cut all roundtable audio immediately — the black map provides the transition.
     this.audio.stopDialogue();
     this.audio.stopSfx();
     this.audio.stopBgmNow();
@@ -701,7 +701,7 @@ class ChoiceOverlay {
       document
         .getElementById("erdtree-scroll")
         .scrollIntoView({ behavior: "instant", block: "start" });
-      // Start scroll music just as the overlay lifts so it's the first thing heard.
+      // Start scroll music just as the map lifts so it's the first thing heard.
       this.audio.startBgm("audio/music/scroll music.wav", 0.35);
       setTimeout(() => {
         this.fadeEl.classList.remove("active");
@@ -868,7 +868,7 @@ class EldenRingApp {
     this.audio = new AudioController();
     this.sidenav = new SideNav();
     this.roundtable = new RoundtableHold(this.audio);
-    this.choice = new ChoiceOverlay(this.audio);
+    this.choice = new ChoiceMap(this.audio);
     this.erdtree = new ErdtreeHScroll(this.audio);
     document
       .querySelectorAll(".grace-embers")

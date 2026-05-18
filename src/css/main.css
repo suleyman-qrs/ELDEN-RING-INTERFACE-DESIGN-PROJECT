@@ -287,7 +287,7 @@ body {
   opacity: 0.07;
 }
 
-.bio-overlay {
+.bio-map {
   position: absolute;
   inset: 0;
   background: linear-gradient(
@@ -434,10 +434,10 @@ body {
 }
 
 /* ======================================================
-   PHASE 3 — CHOICE OVERLAY
+   PHASE 3 — CHOICE MAP
    ====================================================== */
 
-dialog.choice-overlay {
+dialog.choice-map {
   outline: none;
   background: rgba(0, 0, 0, 0.96);
   width: min(560px, 90vw);
@@ -458,14 +458,14 @@ dialog.choice-overlay {
     inset 0 0 40px rgba(0, 0, 0, 0.5);
 }
 
-dialog[open].choice-overlay {
+dialog[open].choice-map {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 40px;
 }
 
-dialog.choice-overlay::backdrop {
+dialog.choice-map::backdrop {
   background: rgba(0, 0, 0, 0.78);
   backdrop-filter: blur(3px);
 }
@@ -983,10 +983,10 @@ dialog.choice-overlay::backdrop {
 }
 
 /* ======================================================
-   GLOBAL FADE OVERLAY
+   GLOBAL FADE MAP
    ====================================================== */
 
-.fade-overlay {
+.fade-map {
   position: fixed;
   inset: 0;
   background: var(--black);
@@ -996,7 +996,7 @@ dialog.choice-overlay::backdrop {
   transition: opacity 0.7s ease;
 }
 
-.fade-overlay.active {
+.fade-map.active {
   opacity: 1;
   pointer-events: auto;
 }

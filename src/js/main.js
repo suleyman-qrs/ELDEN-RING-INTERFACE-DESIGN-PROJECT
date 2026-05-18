@@ -15,6 +15,7 @@ class AudioController {
   constructor() {
     this.bgm = null;
     this.dialogue = null;
+    this.sfxList = [];
     this.unlocked = false;
     this._pendingBgm = false;
 
@@ -91,6 +92,12 @@ class AudioController {
     }, 50);
   }
 
+  stopBgmNow() {
+    if (!this.bgm) return;
+    this.bgm.pause();
+    this.bgm = null;
+  }
+
   crossfadeToBgm(newSrc, fadeDuration = 2000, newVolume = 0.4) {
     this.stopBgm(fadeDuration);
     setTimeout(() => this.startBgm(newSrc, newVolume), fadeDuration * 0.6);
@@ -102,7 +109,18 @@ class AudioController {
       const sfx = new Audio(src);
       sfx.volume = volume;
       sfx.play().catch(() => {});
+      this.sfxList.push(sfx);
+      sfx.addEventListener("ended", () => {
+        this.sfxList = this.sfxList.filter((s) => s !== sfx);
+      }, { once: true });
     }
+  }
+
+  stopSfx() {
+    for (const sfx of this.sfxList) {
+      sfx.pause();
+    }
+    this.sfxList = [];
   }
 
   playSfxSequence(srcs, volume = 1) {
@@ -283,8 +301,9 @@ class ErdtreePlayer {
   }
 
   _resize() {
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
+    const p = this.canvas.parentElement;
+    this.canvas.width  = p ? p.clientWidth  : window.innerWidth;
+    this.canvas.height = p ? p.clientHeight : window.innerHeight;
     if (this.currentFrame >= 0) {
       const img = this.cache.get(this.currentFrame);
       if (img) this._draw(img);
@@ -383,7 +402,7 @@ const CHAPTER_CUES = (() => {
 })();
 
 class ErdtreeHScroll {
-  static FPS = 6; // cinematic playback rate
+  static FPS = 12; // cinematic playback rate
 
   constructor(audio) {
     this.section = document.getElementById("erdtree-scroll");
@@ -395,83 +414,149 @@ class ErdtreeHScroll {
 
     this._rafId = null;
     this._lastTs = null;
-    this._pauseTimer = null;
     this._tick = this._tick.bind(this);
+
+    this._frame = 0;
+    this._targetFrame = -1;
+    this._sceneIdx = -1; // -1 = not started
+    this._active = false;
+    this._done = false; // true once last scene finishes
+    this._sliding = false; // true during slide transition
+
+    this._canvasEl = document.getElementById("erdtree-canvas");
+    this._slideTimer = null;
+
+    // Precompute the first frame index for each scene
+    this._sceneStart = [];
+    let f = 0;
+    for (const scene of SCENES) {
+      this._sceneStart.push(f);
+      f += scene.count;
+    }
 
     this.player.init();
 
-    // Show/hide canvas overlay; start/stop auto-play as section enters/leaves view.
-    // Stage uses a higher threshold (0.6) so it fades out quickly once the user
-    // scrolls past the section — without this, the fixed canvas blocks visual feedback.
+    // Show/hide canvas overlay as section enters/leaves the viewport.
+    // Stage uses a higher threshold (0.6) so it fades out quickly once the
+    // user scrolls past — without this the fixed canvas blocks visual feedback.
     const io = new IntersectionObserver(
       ([entry]) => {
         const ratio = entry.intersectionRatio;
         this.stage.classList.toggle("active", ratio > 0.6);
-        if (ratio > 0.1) {
-          this._onScroll();
-          this._startPlay();
-        } else {
+        if (ratio > 0.5) {
+          this._active = true;
+          if (this._sceneIdx < 0) {
+            // First entry: lock page scroll and begin scene 0
+            document.body.style.overflow = "hidden";
+            this._goToScene(0);
+          } else if (!this._done) {
+            // Re-entry before finishing: re-lock
+            document.body.style.overflow = "hidden";
+          }
+        } else if (ratio < 0.1) {
+          this._active = false;
           this.subtitle.classList.remove("visible");
           this.chapter = -1;
           this._stopPlay();
+          this.audio.stopDialogue();
         }
       },
-      { threshold: [0, 0.1, 0.6, 1.0] },
+      { threshold: [0, 0.1, 0.5, 0.6, 1.0] },
     );
     io.observe(this.section);
 
-    // Redirect vertical wheel to horizontal scroll while section fills viewport.
-    // Pause auto-play while the user is manually scrubbing.
+    // Wheel → advance or rewind one scene at a time.
+    // While a scene is playing or transitioning, swallow the event so it
+    // doesn't race ahead. At the edges, pass through so the page can scroll.
     window.addEventListener(
       "wheel",
       (e) => {
-        const rect = this.section.getBoundingClientRect();
-        if (rect.top > 8 || rect.bottom < window.innerHeight - 8) return;
-        const maxScroll = this.section.scrollWidth - this.section.clientWidth;
-        const atStart = this.section.scrollLeft <= 0;
-        const atEnd = this.section.scrollLeft >= maxScroll - 1;
-        const goRight = e.deltaY > 0 && !atEnd;
-        const goLeft = e.deltaY < 0 && !atStart;
-        if ((goRight || goLeft) && Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+        if (!this._active) return;
+        if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+
+        const goingDown = e.deltaY > 0;
+
+        // Scene still playing or slide in progress — absorb scroll
+        if (this._rafId || this._sliding) {
           e.preventDefault();
-          this.section.scrollLeft += e.deltaY;
-          this._onUserScrub();
+          return;
         }
+
+        // Last scene done → release downward scroll to page
+        if (goingDown && this._done) return;
+
+        // At scene 0 scrolling up → unlock page and let it scroll
+        if (!goingDown && this._sceneIdx <= 0) {
+          document.body.style.overflow = "";
+          return;
+        }
+
+        e.preventDefault();
+        this._goToScene(this._sceneIdx + (goingDown ? 1 : -1));
       },
       { passive: false },
     );
-
-    this.section.addEventListener("scroll", () => this._onScroll(), {
-      passive: true,
-    });
   }
 
-  // ── Auto-play ────────────────────────────────────────
+  _goToScene(idx) {
+    idx = Math.max(0, Math.min(SCENES.length - 1, idx));
 
-  _startPlay() {
-    if (this._rafId) return;
-    this._lastTs = null;
-    this._rafId = requestAnimationFrame(this._tick);
+    const isFirst = this._sceneIdx < 0;
+    const direction = idx >= this._sceneIdx ? 1 : -1;
+
+    this._done = false;
+    this._sceneIdx = idx;
+    this._frame = this._sceneStart[idx];
+    this._targetFrame =
+      idx < SCENES.length - 1
+        ? this._sceneStart[idx + 1] - 1
+        : TOTAL_FRAMES - 1;
+
+    this._stopPlay();
+
+    if (isFirst) {
+      // No slide for the very first scene — just start playing
+      this._checkChapterCues();
+      this._lastTs = null;
+      this._rafId = requestAnimationFrame(this._tick);
+      return;
+    }
+
+    // Slide transition: old frame slides out, new slides in
+    this._sliding = true;
+    clearTimeout(this._slideTimer);
+    const el = this._canvasEl;
+    const outX = direction === 1 ? "-100%" : "100%";
+    const inX  = direction === 1 ? "100%"  : "-100%";
+
+    el.style.transition = "transform 0.3s ease-in";
+    el.style.transform  = `translateX(${outX})`;
+
+    this._slideTimer = setTimeout(() => {
+      // First frame of the new scene is ready; fire cues now so
+      // dialogue starts as the new content slides into view
+      this.player.seek(this._frame);
+      this._checkChapterCues();
+
+      el.style.transition = "none";
+      el.style.transform  = `translateX(${inX})`;
+      void el.offsetWidth; // force reflow so the transition fires
+      el.style.transition = "transform 0.35s ease-out";
+      el.style.transform  = "translateX(0)";
+
+      this._lastTs = null;
+      this._rafId  = requestAnimationFrame(this._tick);
+
+      this._slideTimer = setTimeout(() => {
+        el.style.transition = "";
+        this._sliding = false;
+      }, 350);
+    }, 300);
   }
 
   _stopPlay() {
     if (this._rafId) cancelAnimationFrame(this._rafId);
     this._rafId = null;
-    clearTimeout(this._pauseTimer);
-    this._pauseTimer = null;
-  }
-
-  _onUserScrub() {
-    // Pause auto-play while scrubbing; resume 2 s after last gesture.
-    if (this._rafId) {
-      cancelAnimationFrame(this._rafId);
-      this._rafId = null;
-    }
-    clearTimeout(this._pauseTimer);
-    this._pauseTimer = setTimeout(() => {
-      const maxScroll = this.section.scrollWidth - this.section.clientWidth;
-      if (this.section.scrollLeft < maxScroll - 1) this._startPlay();
-    }, 2000);
   }
 
   _tick(ts) {
@@ -483,39 +568,28 @@ class ErdtreeHScroll {
       const frames = Math.floor(elapsed / frameDuration);
       this._lastTs = ts - (elapsed % frameDuration);
 
-      const maxScroll = this.section.scrollWidth - this.section.clientWidth;
-      if (maxScroll <= 0) {
-        this._rafId = requestAnimationFrame(this._tick);
+      this._frame = Math.min(this._frame + frames, this._targetFrame);
+      this.player.seek(this._frame);
+      this._checkChapterCues();
+
+      if (this._frame >= this._targetFrame) {
+        if (this._sceneIdx >= SCENES.length - 1) {
+          // All scenes done — release page scroll
+          this._done = true;
+          document.body.style.overflow = "";
+        }
+        this._rafId = null;
         return;
       }
-
-      const pixPerFrame = maxScroll / (TOTAL_FRAMES - 1);
-      const next = this.section.scrollLeft + frames * pixPerFrame;
-
-      if (next >= maxScroll) {
-        this.section.scrollLeft = maxScroll;
-        this._stopPlay();
-        return;
-      }
-      this.section.scrollLeft = next;
     }
 
     this._rafId = requestAnimationFrame(this._tick);
   }
 
-  // ── Cue logic (unchanged) ────────────────────────────
-
-  _onScroll() {
-    const maxScroll = this.section.scrollWidth - this.section.clientWidth;
-    const progress = maxScroll > 0 ? this.section.scrollLeft / maxScroll : 0;
-    const frame = Math.round(progress * (TOTAL_FRAMES - 1));
-
-    this.player.seek(frame);
-
-    // Walk backwards through cue points to find the highest one we've passed.
+  _checkChapterCues() {
     let chapterIdx = -1;
     for (let i = CHAPTER_CUES.length - 1; i >= 0; i--) {
-      if (frame >= CHAPTER_CUES[i].frame) {
+      if (this._frame >= CHAPTER_CUES[i].frame) {
         chapterIdx = i;
         break;
       }
@@ -613,12 +687,18 @@ class ChoiceOverlay {
   }
 
   _transitionToNarration() {
-    this.audio.crossfadeToBgm("audio/music/scroll music.wav", 1500, 0.35);
+    // Cut all roundtable audio immediately — the black overlay provides the transition.
+    this.audio.stopDialogue();
+    this.audio.stopSfx();
+    this.audio.stopBgmNow();
+
     this.fadeEl.classList.add("active");
     setTimeout(() => {
       document
         .getElementById("erdtree-scroll")
         .scrollIntoView({ behavior: "instant", block: "start" });
+      // Start scroll music just as the overlay lifts so it's the first thing heard.
+      this.audio.startBgm("audio/music/scroll music.wav", 0.35);
       setTimeout(() => {
         this.fadeEl.classList.remove("active");
       }, 50);
@@ -639,6 +719,24 @@ class RoundtableHold {
     this.section = document.getElementById("roundtable");
     this.audio = audio;
     this.awoken = false;
+
+    // IntersectionObserver fires regardless of body scroll-lock state,
+    // making audio trigger reliable whether the user scrolls or uses the sidenav.
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!this.awoken && entry.intersectionRatio >= 0.4) {
+          this.awoken = true;
+          this.section.classList.add("rt-awake");
+          this.section.scrollIntoView({ behavior: "smooth", block: "start" });
+          setTimeout(() => {
+            document.body.style.overflow = "hidden";
+          }, 600);
+          this.audio.onUnlock(() => this._playAudio());
+        }
+      },
+      { threshold: [0, 0.4, 1.0] },
+    );
+    io.observe(this.section);
   }
 
   _playAudio() {
@@ -648,30 +746,105 @@ class RoundtableHold {
       0.7,
     );
     setTimeout(() => {
-      this.audio.playSfxSequence([
+      this.audio.playDialogueSequence([
         "audio/dialogue/sigh.wav",
         "audio/dialogue/my oh my.wav",
       ]);
     }, 800);
   }
 
-  tryAwaken(scrollY, vh) {
-    if (this.awoken) return;
-    const rect = this.section.getBoundingClientRect();
-    if (rect.top < vh * 0.6) {
-      this.awoken = true;
-      this.section.classList.add("rt-awake");
+  // Called from EldenRingApp._update() — kept for sidenav active-dot tracking.
+  tryAwaken() {}
+}
 
-      // Snap flush to viewport top, then lock page scroll until choice is made.
-      this.section.scrollIntoView({ behavior: "smooth", block: "start" });
-      setTimeout(() => {
-        document.body.style.overflow = "hidden";
-      }, 600);
+/* ──────────────────────────────────────────────────────
+   GRACE EMBERS — golden mote particle system
+────────────────────────────────────────────────────── */
 
-      // Defer audio until the browser audio context is unlocked by a user gesture.
-      // onUnlock fires immediately if already unlocked, otherwise queues the call.
-      this.audio.onUnlock(() => this._playAudio());
+class GraceEmbers {
+  static MAX = 40;
+
+  constructor(canvasEl) {
+    this._canvas = canvasEl;
+    this._ctx = canvasEl.getContext("2d");
+    this._W = 0;
+    this._H = 0;
+    this._particles = [];
+    this._lastTs = 0;
+
+    this._resize();
+    window.addEventListener("resize", () => this._resize(), { passive: true });
+
+    for (let i = 0; i < GraceEmbers.MAX; i++) {
+      this._particles.push(this._newParticle(true));
     }
+
+    requestAnimationFrame((ts) => this._tick(ts));
+  }
+
+  _resize() {
+    const rect = this._canvas.parentElement.getBoundingClientRect();
+    this._W = this._canvas.width = Math.round(rect.width) || window.innerWidth;
+    this._H = this._canvas.height = Math.round(rect.height) || window.innerHeight;
+  }
+
+  _newParticle(distributed = false) {
+    const size = 1.2 + Math.random() * 2.5;
+    return {
+      x: Math.random() * this._W,
+      y: distributed ? Math.random() * this._H : this._H + size * 6,
+      size,
+      vy: 16 + Math.random() * 30,
+      driftAmp: 10 + Math.random() * 20,
+      driftFreq: 0.2 + Math.random() * 0.5,
+      driftPhase: Math.random() * Math.PI * 2,
+      alpha: distributed ? Math.random() * 0.45 : 0,
+      maxAlpha: 0.3 + Math.random() * 0.4,
+      fadeDir: distributed && Math.random() > 0.5 ? -1 : 1,
+      fadeSpeed: 0.2 + Math.random() * 0.3,
+    };
+  }
+
+  _tick(ts) {
+    requestAnimationFrame((ts) => this._tick(ts));
+    const dt = Math.min((ts - this._lastTs) / 1000, 0.1);
+    this._lastTs = ts;
+    const t = ts * 0.001;
+
+    const ctx = this._ctx;
+    ctx.clearRect(0, 0, this._W, this._H);
+
+    if (this._particles.length < GraceEmbers.MAX && Math.random() < dt * 4) {
+      this._particles.push(this._newParticle(false));
+    }
+
+    this._particles = this._particles.filter((p) => {
+      p.y -= p.vy * dt;
+      p.x += Math.sin(t * p.driftFreq * Math.PI * 2 + p.driftPhase) * p.driftAmp * dt;
+
+      p.alpha += p.fadeSpeed * p.fadeDir * dt;
+      if (p.alpha >= p.maxAlpha) { p.alpha = p.maxAlpha; p.fadeDir = -1; }
+      if (p.alpha <= 0 && p.fadeDir < 0) return false;
+      p.alpha = Math.max(0, p.alpha);
+      if (p.y < -p.size * 8) return false;
+
+      const r = p.size * 5;
+      const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+      grd.addColorStop(0,   `rgba(255, 225, 120, ${p.alpha})`);
+      grd.addColorStop(0.3, `rgba(212, 165,  40, ${p.alpha * 0.65})`);
+      grd.addColorStop(1,   `rgba(160, 100,  10, 0)`);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = grd;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 0.55, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 250, 210, ${Math.min(p.alpha * 2.2, 1)})`;
+      ctx.fill();
+
+      return true;
+    });
   }
 }
 
@@ -686,6 +859,7 @@ class EldenRingApp {
     this.roundtable = new RoundtableHold(this.audio);
     this.choice = new ChoiceOverlay(this.audio);
     this.erdtree = new ErdtreeHScroll(this.audio);
+    document.querySelectorAll(".grace-embers").forEach((c) => new GraceEmbers(c));
 
     this.fadeEls = Array.from(document.querySelectorAll(".fade-in"));
     this.volumeNotice = document.querySelector(".volume-notice");

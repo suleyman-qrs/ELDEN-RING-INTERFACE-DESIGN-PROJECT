@@ -13,6 +13,16 @@ const UNLOCK_EVENTS = Object.freeze([
 
 const FADE_STEP_MS = 50;
 
+/** Timing constants for the NPC dialogue flow (ms). */
+const DIALOGUE_TIMING = Object.freeze({
+  /** Wait for dialog opacity transition before showing subtitle. */
+  DIALOG_FADE:      370,
+  /** Delay before fading dialog back in after audio ends or is skipped. */
+  SUBTITLE_RESTORE: 300,
+  /** Delay before arming the skip-click listener (avoids catching the triggering click). */
+  SKIP_ARM:         200,
+});
+
 /* ──────────────────────────────────────────────────────
    AUDIO CONTROLLER
    Handles BGM, sequential SFX, and non-overlapping
@@ -152,32 +162,28 @@ class AudioController {
 
   /**
    * Plays dialogue tracks sequentially, optionally looping the full sequence.
-   * @param {string[]} srcs    - Tracks to play in this call
+   * Uses the generation counter so stopDialogue() cancels pending callbacks.
+   * @param {string[]} srcs
    * @param {boolean}  [loop=false]
-   * @param {string[]} [_root=srcs] - Full original sequence (used to restart loop correctly)
+   * @param {string[]} [_root=srcs] - Full original sequence for loop restart
    */
   playDialogueSequence(srcs, loop = false, _root = srcs) {
     this.#dialogue?.pause();
     this.#dialogue = null;
     if (!this.#unlocked || !srcs.length) return;
 
+    const gen = ++this.#dialogueGen;
     const [first, ...rest] = srcs;
-    this.#dialogue = new Audio(first);
-    this.#dialogue.volume = 1;
-    this.#dialogue.play().catch(() => {});
+    const el = new Audio(first);
+    this.#dialogue = el;
+    el.volume = 1;
+    el.play().catch(() => {});
 
-    if (rest.length) {
-      this.#dialogue.addEventListener(
-        "ended",
-        () => this.playDialogueSequence(rest, loop, _root),
-        { once: true },
-      );
-    } else if (loop) {
-      this.#dialogue.addEventListener(
-        "ended",
-        () => this.playDialogueSequence(_root, loop, _root),
-        { once: true },
-      );
+    const nextSrcs = rest.length ? rest : (loop ? _root : null);
+    if (nextSrcs) {
+      el.addEventListener("ended", () => {
+        if (this.#dialogueGen === gen) this.playDialogueSequence(nextSrcs, loop, _root);
+      }, { once: true });
     }
   }
 
@@ -794,67 +800,111 @@ class RoundtableHold {
    with subtitle overlay and dialog fade.
 ────────────────────────────────────────────────────── */
 
-/** Shared subtitle element (lazily resolved once). */
-const subtitle = {
-  /** @returns {{ el: HTMLElement, name: HTMLElement, text: HTMLElement } | null} */
-  get() {
+/**
+ * Subtitle overlay — singleton; caches DOM refs on first access.
+ * @type {{ show(npcName: string, line: string): void, hide(): void }}
+ */
+const subtitle = (() => {
+  /** @type {{ el: HTMLElement, name: HTMLElement, text: HTMLElement } | null} */
+  let cache = null;
+
+  function resolve() {
+    if (cache) return cache;
     const el   = document.getElementById("rt-subtitle");
     const name = el?.querySelector(".rt-subtitle__name");
     const text = el?.querySelector(".rt-subtitle__text");
-    return el && name && text
-      ? { el: /** @type {HTMLElement} */ (el), name: /** @type {HTMLElement} */ (name), text: /** @type {HTMLElement} */ (text) }
-      : null;
-  },
-  /** @param {string} npcName @param {string} line */
-  show(npcName, line) {
-    const s = this.get();
-    if (!s) return;
-    s.name.textContent = npcName;
-    s.text.textContent = line;
-    s.el.classList.add("rt-subtitle--visible");
-  },
-  hide() {
-    this.get()?.el.classList.remove("rt-subtitle--visible");
-  },
-};
+    if (el && name && text) {
+      cache = {
+        el:   /** @type {HTMLElement} */ (el),
+        name: /** @type {HTMLElement} */ (name),
+        text: /** @type {HTMLElement} */ (text),
+      };
+    }
+    return cache;
+  }
 
-/** Zooms the rt-layers element toward a given point. */
-const sceneZoom = {
-  /** @param {number} ox @param {number} oy @param {number} scale */
-  zoomTo(ox, oy, scale = 1.55) {
-    const layers = /** @type {HTMLElement | null} */ (document.querySelector(".rt-layers"));
-    if (!layers) return;
-    layers.style.transformOrigin = `${ox}% ${oy}%`;
-    layers.style.transform = `scale(${scale})`;
-  },
-  zoomOut() {
-    const layers = /** @type {HTMLElement | null} */ (document.querySelector(".rt-layers"));
-    if (!layers) return;
-    layers.style.transform = "scale(1)";
-  },
-};
+  return {
+    /**
+     * @param {string} npcName
+     * @param {string} line
+     */
+    show(npcName, line) {
+      const s = resolve();
+      if (!s) return;
+      s.name.textContent = npcName;
+      s.text.textContent = line;
+      s.el.classList.add("rt-subtitle--visible");
+    },
+    hide() {
+      resolve()?.el.classList.remove("rt-subtitle--visible");
+    },
+  };
+})();
+
+/**
+ * Scene zoom — singleton; caches the `.rt-layers` element on first access.
+ * @type {{ zoomTo(ox: number, oy: number, scale?: number): void, zoomOut(): void }}
+ */
+const sceneZoom = (() => {
+  /** @type {HTMLElement | null} */
+  let layers = null;
+
+  /** @returns {HTMLElement | null} */
+  function getLayers() {
+    return (layers ??= /** @type {HTMLElement | null} */ (document.querySelector(".rt-layers")));
+  }
+
+  return {
+    /**
+     * @param {number} ox    transform-origin X %
+     * @param {number} oy    transform-origin Y %
+     * @param {number} [scale=1.55]
+     */
+    zoomTo(ox, oy, scale = 1.55) {
+      const el = getLayers();
+      if (!el) return;
+      el.style.transformOrigin = `${ox}% ${oy}%`;
+      el.style.transform       = `scale(${scale})`;
+    },
+    zoomOut() {
+      const el = getLayers();
+      if (!el) return;
+      el.style.transform = "scale(1)";
+    },
+  };
+})();
+
+/**
+ * @typedef {{
+ *   zoneId:   string,
+ *   imgId:    string,
+ *   dialogId: string,
+ *   npcName:  string,
+ *   zoomX:    number,
+ *   zoomY:    number,
+ * }} NpcConfig
+ */
 
 class RoundtableNPC {
   /** @type {AudioController} */ #audio;
   /** @type {string} */          #name;
 
   /**
-   * @param {string}          zoneId   — id of invisible zone <button>
-   * @param {string}          imgId    — id of character <img>
-   * @param {string}          dialogId — id of <dialog>
+   * @param {NpcConfig}       config
    * @param {AudioController} audio
-   * @param {string}          npcName  — display name for subtitles
-   * @param {number}          zoomX    — transform-origin X % toward this NPC
-   * @param {number}          zoomY    — transform-origin Y %
    */
-  constructor(zoneId, imgId, dialogId, audio, npcName, zoomX, zoomY) {
+  constructor({ zoneId, imgId, dialogId, npcName, zoomX, zoomY }, audio) {
     this.#audio = audio;
     this.#name  = npcName;
 
     const zone   = document.getElementById(zoneId);
     const img    = document.getElementById(imgId);
-    const dialog = /** @type {HTMLDialogElement} */ (document.getElementById(dialogId));
-    if (!zone || !img || !dialog) return;
+    const dialog = /** @type {HTMLDialogElement | null} */ (document.getElementById(dialogId));
+
+    if (!zone || !img || !dialog) {
+      console.warn(`RoundtableNPC: missing element(s) for "${npcName}" (zone=${zoneId}, img=${imgId}, dialog=${dialogId})`);
+      return;
+    }
 
     let active = false;
     zone.addEventListener("mouseenter", () => img.classList.add("rt-npc--glow"));
@@ -902,7 +952,7 @@ class RoundtableNPC {
       if (done) return;
       done = true;
       subtitle.hide();
-      setTimeout(() => dialog.classList.remove("npc-dialog--faded"), 300);
+      setTimeout(() => dialog.classList.remove("npc-dialog--faded"), DIALOGUE_TIMING.SUBTITLE_RESTORE);
     };
     const onSkip = () => {
       if (done) return;
@@ -913,10 +963,10 @@ class RoundtableNPC {
     setTimeout(() => {
       subtitle.show(this.#name, line);
       this.#audio.playDialogueLine(srcs, restore);
-      // Delay so the click that opened this topic isn't caught as a skip.
-      // Use capture so it intercepts clicks before any element handlers.
-      setTimeout(() => document.addEventListener("click", onSkip, { capture: true, once: true }), 200);
-    }, 370);
+      // Arm the skip listener after SKIP_ARM ms to avoid catching the
+      // triggering click. Capture phase so it fires before element handlers.
+      setTimeout(() => document.addEventListener("click", onSkip, { capture: true, once: true }), DIALOGUE_TIMING.SKIP_ARM);
+    }, DIALOGUE_TIMING.DIALOG_FADE);
   }
 }
 
@@ -1045,10 +1095,13 @@ class EldenRingApp {
     new RoundtableHold(this.#audio);
     new ChoiceMap(this.#audio);
 
-    //                  zone              img               dialog               audio          name                          zoomX  zoomY
-    new RoundtableNPC("rt-zone-d",      "rt-img-d",      "npc-dialog-d",      this.#audio, "D, Hunter of the Dead",         22,    68);
-    new RoundtableNPC("rt-zone-gideon", "rt-img-gideon", "npc-dialog-gideon", this.#audio, "Gideon Ofnir, the All-Knowing", 14,    68);
-    new RoundtableNPC("rt-zone-rogier", "rt-img-rogier", "npc-dialog-rogier", this.#audio, "Sorcerer Rogier",               65,    68);
+    /** @type {readonly NpcConfig[]} */
+    const NPC_CONFIGS = Object.freeze([
+      { zoneId: "rt-zone-d",      imgId: "rt-img-d",      dialogId: "npc-dialog-d",      npcName: "D, Hunter of the Dead",         zoomX: 22, zoomY: 68 },
+      { zoneId: "rt-zone-gideon", imgId: "rt-img-gideon", dialogId: "npc-dialog-gideon", npcName: "Gideon Ofnir, the All-Knowing", zoomX: 14, zoomY: 68 },
+      { zoneId: "rt-zone-rogier", imgId: "rt-img-rogier", dialogId: "npc-dialog-rogier", npcName: "Sorcerer Rogier",               zoomX: 65, zoomY: 68 },
+    ]);
+    for (const config of NPC_CONFIGS) new RoundtableNPC(config, this.#audio);
 
     this.#erdtree = new ErdtreeHScroll(this.#audio);
 

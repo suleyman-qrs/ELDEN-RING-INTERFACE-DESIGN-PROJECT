@@ -509,6 +509,13 @@ body {
   pointer-events: auto;
 }
 
+/* Keyboard focus indicator — invisible zones still need a visible focus ring. */
+.rt-npc-zone:focus-visible {
+  outline: 2px solid rgba(212, 175, 80, 0.8);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
 /* NPC dialogue dialogs */
 .npc-dialog {
   transition: opacity 0.35s ease;

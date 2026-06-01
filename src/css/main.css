@@ -40,13 +40,24 @@
     "Optimus Princeps", "Palatino Linotype", Palatino, Georgia, serif;
   --font-serif: "Agmena Pro", "Palatino Linotype", Palatino, Georgia, serif;
   --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --gold: #ffd000;
-  --gold-dim: rgba(255, 208, 0, 0.55);
-  --glow-sm: 0 0 8px rgba(255, 208, 0, 0.5);
-  --glow-lg: 0 0 24px rgba(255, 208, 0, 0.45);
-  --white: #fff;
+
+  /* Aged bronze-gold — matches the game's muted, parchment-worn gold */
+  --gold:         #c8a434;
+  --gold-bright:  #e2bc50;
+  --gold-dim:     rgba(180, 148, 40, 0.55);
+  --gold-line:    rgba(172, 138, 56, 0.5);   /* thin separator lines */
+  --gold-border:  rgba(160, 128, 40, 0.65);  /* panel borders */
+
+  /* Warm cream — the game never uses pure white for body text */
+  --cream:        #f0e2c0;
+  --cream-dim:    rgba(240, 226, 192, 0.65);
+
+  --glow-sm: 0 0 10px rgba(180, 148, 40, 0.45);
+  --glow-lg: 0 0 28px rgba(180, 148, 40, 0.35);
+
+  --white: #fff;   /* kept for true-white backgrounds / overlays only */
   --black: #000;
-  --dark: #0a0a0a;
+  --dark:  #0a0a0a;
 }
 
 html {
@@ -157,9 +168,9 @@ body {
 
 .hero-name {
   font-family: var(--font-display);
-  font-size: clamp(10px, 1.1vw, 16px);
+  font-size: clamp(10px, 1vw, 14px);
   font-weight: 400;
-  letter-spacing: 0.35em;
+  letter-spacing: 0.42em;
   text-transform: uppercase;
   color: var(--gold-dim);
   text-shadow: var(--glow-sm);
@@ -168,37 +179,37 @@ body {
 .hero-name::after {
   content: "";
   display: block;
-  margin: 14px auto 0;
-  width: 40px;
+  margin: 16px auto 0;
+  width: 48px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+  background: linear-gradient(90deg, transparent, var(--gold-line), transparent);
 }
 
 .hero-quote {
   font-family: var(--font-display);
   font-weight: 400;
   font-style: normal;
-  font-size: clamp(30px, 6vw, 88px);
-  line-height: 1.15;
-  color: var(--white);
+  font-size: clamp(28px, 5.5vw, 82px);
+  line-height: 1.18;
+  color: var(--cream);
   text-shadow: var(--glow-lg);
   text-align: center;
 }
 
 .hero-quote p {
-  margin-bottom: 0.5em;
+  margin-bottom: 0.45em;
 }
 
 .hero-attribution {
   font-family: var(--font-serif);
-  font-size: clamp(13px, 1.3vw, 20px);
-  opacity: 0.5;
-  font-style: normal;
-  letter-spacing: 0.08em;
+  font-size: clamp(12px, 1.1vw, 18px);
+  color: var(--cream-dim);
+  font-style: italic;
+  letter-spacing: 0.1em;
 }
 
 .hero-attribution cite {
-  font-style: normal;
+  font-style: italic;
 }
 
 .volume-notice {
@@ -302,14 +313,14 @@ body {
   position: relative;
   z-index: 1;
   font-family: var(--font-serif);
-  font-size: clamp(15px, 1.8vw, 28px);
-  line-height: 1.85;
+  font-size: clamp(15px, 1.75vw, 26px);
+  line-height: 1.9;
   text-align: center;
-  color: var(--white);
-  opacity: 0.78;
-  text-shadow: var(--glow-sm);
-  letter-spacing: 0.015em;
-  max-width: min(620px, 84vw);
+  color: var(--cream);
+  opacity: 0.82;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+  letter-spacing: 0.02em;
+  max-width: min(600px, 84vw);
 }
 
 .bio-text::before {
@@ -362,32 +373,34 @@ body {
 
 .rt-subtitle__name {
   display: block;
-  font-family: var(--font-serif);
-  font-size: clamp(10px, 1vw, 14px);
-  letter-spacing: 0.25em;
+  font-family: var(--font-display);
+  font-size: clamp(9px, 0.9vw, 13px);
+  letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: rgba(200, 165, 75, 0.9);
+  color: var(--gold);
   margin-bottom: 10px;
+  opacity: 0.85;
 }
 
 .rt-subtitle__text {
   margin: 0;
   font-family: var(--font-serif);
-  font-size: clamp(15px, 1.55vw, 22px);
-  color: rgba(245, 238, 220, 0.97);
-  line-height: 1.65;
+  font-size: clamp(14px, 1.45vw, 21px);
+  color: var(--cream);
+  line-height: 1.7;
   text-shadow:
     0 1px 6px rgba(0, 0, 0, 1),
-    0 0 24px rgba(0, 0, 0, 0.9);
+    0 0 28px rgba(0, 0, 0, 0.95);
   background: linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.52) 18%,
-    rgba(0, 0, 0, 0.52) 82%,
-    rgba(0, 0, 0, 0) 100%
+    rgba(0, 0, 0, 0)    0%,
+    rgba(0, 0, 0, 0.55) 16%,
+    rgba(0, 0, 0, 0.55) 84%,
+    rgba(0, 0, 0, 0)    100%
   );
   padding: 14px 28px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.025em;
+  font-style: italic;
 }
 
 .rt-layer {
@@ -451,18 +464,34 @@ body {
 
 .rt-hint {
   position: absolute;
-  bottom: 10%;
+  bottom: 8%;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--font-serif);
-  font-size: clamp(11px, 1.1vw, 16px);
-  letter-spacing: 0.28em;
+  font-size: clamp(11px, 1vw, 15px);
+  letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--white);
+  color: var(--cream-dim);
   opacity: 0;
   z-index: 2;
   transition: opacity 1s ease;
   pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Keyboard / controller "button" indicator before the label */
+.rt-hint::before {
+  content: "[ E ]";
+  font-family: var(--font-sans);
+  font-size: clamp(9px, 0.8vw, 12px);
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  border: 1px solid var(--gold-dim);
+  padding: 2px 6px;
+  opacity: 0.8;
 }
 
 .phase--roundtable.rt-awake .rt-hint {
@@ -533,107 +562,147 @@ body {
 .npc-dialog[open] {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 32px;
+  align-items: stretch;
+  gap: 0;
   outline: none;
-  background: rgba(0, 0, 0, 0.96);
-  width: min(520px, 90vw);
+  background: rgba(4, 3, 1, 0.97);
+  width: min(500px, 90vw);
   max-height: 85vh;
   overflow-y: auto;
-  padding: clamp(36px, 6vh, 64px) clamp(28px, 5vw, 56px);
+  padding: 0;
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   margin: 0;
-  border: 1px solid rgba(172, 138, 72, 0.55);
+  /* Elden Ring layered parchment border */
+  border: 1px solid var(--gold-border);
   box-shadow:
-    0 0 0 3px rgba(14, 10, 3, 1),
-    0 0 0 5px rgba(144, 114, 56, 0.45),
-    0 0 0 7px rgba(14, 10, 3, 0.98),
-    0 0 80px rgba(0, 0, 0, 0.98),
-    inset 0 0 40px rgba(0, 0, 0, 0.5);
+    0 0 0 3px rgba(8, 6, 2, 1),
+    0 0 0 5px rgba(140, 110, 35, 0.4),
+    0 0 0 7px rgba(8, 6, 2, 0.98),
+    0 0 60px rgba(0, 0, 0, 0.98),
+    inset 0 0 50px rgba(0, 0, 0, 0.6);
 }
 
 .npc-dialog::backdrop {
   background: transparent;
 }
 
-.npc-dialog__title {
-  font-family: var(--font-serif);
-  font-size: clamp(16px, 1.9vw, 28px);
-  text-align: center;
-  color: var(--white);
-  text-shadow: var(--glow-sm);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+/* Inner inset decorative frame */
+.npc-dialog[open]::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(140, 110, 35, 0.18);
+  pointer-events: none;
+  z-index: 0;
 }
 
+.npc-dialog__title {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-size: clamp(12px, 1.3vw, 18px);
+  text-align: center;
+  color: var(--cream);
+  text-shadow: var(--glow-sm);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  padding: clamp(24px, 4vh, 40px) clamp(28px, 5vw, 56px) 0;
+}
+
+/* Gold crown line above title */
+.npc-dialog__title::before {
+  content: "";
+  display: block;
+  margin: 0 auto 18px;
+  width: 56px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-line), transparent);
+}
+
+/* Gold rule below title */
 .npc-dialog__title::after {
   content: "";
   display: block;
-  margin: 16px auto 0;
-  width: 72px;
+  margin: 18px auto 0;
+  width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(172, 138, 72, 0.5), transparent);
+  background: linear-gradient(90deg, transparent, var(--gold-line), transparent);
 }
 
 .npc-dialog__topics {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
   width: 100%;
+  padding: clamp(8px, 1.5vh, 16px) 0 clamp(20px, 3vh, 36px);
 }
 
 .npc-topic-btn {
   width: 100%;
-  padding: 10px 20px;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(104, 96, 81, 0.5) 0%,
-    rgba(174, 159, 112, 0.18) 50%,
-    rgba(243, 223, 143, 0) 100%
-  );
+  padding: 10px clamp(28px, 5vw, 56px);
+  background: transparent;
   border: none;
   cursor: pointer;
   font-family: var(--font-serif);
-  font-size: clamp(13px, 1.5vw, 22px);
-  color: var(--white);
-  text-shadow: 2px 1px 6px rgba(0, 0, 0, 0.7);
+  font-size: clamp(13px, 1.35vw, 20px);
+  color: var(--cream);
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
   letter-spacing: 0.04em;
   text-align: left;
-  transition: background 0.2s, color 0.2s, text-shadow 0.2s;
+  transition: background 0.15s, color 0.15s;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
 
+/* Arrow indicator — separate element so it doesn't affect text indent */
 .npc-topic-btn::before {
-  content: "› ";
-  color: rgba(172, 138, 72, 0.7);
+  content: "›";
+  flex-shrink: 0;
+  font-size: 1.1em;
+  color: var(--gold);
+  opacity: 0.5;
+  transition: opacity 0.15s, color 0.15s;
+  line-height: 1;
 }
 
 .npc-topic-btn:hover {
-  background: radial-gradient(
-    ellipse at center,
-    rgba(140, 126, 100, 0.65) 0%,
-    rgba(200, 182, 128, 0.28) 50%,
-    rgba(243, 223, 143, 0) 100%
-  );
-  color: rgba(255, 220, 130, 0.95);
-  text-shadow: 0 0 18px rgba(255, 208, 0, 0.35);
+  background: rgba(172, 138, 56, 0.1);
+  color: var(--gold-bright);
+}
+
+.npc-topic-btn:hover::before {
+  opacity: 1;
+  color: var(--gold-bright);
 }
 
 .npc-topic-btn--seek {
-  color: rgba(255, 215, 100, 0.9);
-  text-shadow: 0 0 12px rgba(255, 200, 0, 0.3);
-  margin-top: 8px;
+  color: var(--gold);
+  border-top: 1px solid rgba(140, 110, 35, 0.22);
+  margin-top: 4px;
+  padding-top: 14px;
 }
 
 .npc-topic-btn--leave {
-  opacity: 0.38;
-  margin-top: 4px;
+  color: rgba(240, 226, 192, 0.28);
+  border-top: 1px solid rgba(140, 110, 35, 0.14);
+  margin-top: 2px;
+  padding-top: 12px;
 }
 
 .npc-topic-btn--leave:hover {
-  opacity: 0.7;
+  color: var(--cream-dim);
+  background: transparent;
+}
+
+.npc-topic-btn--leave:hover::before {
+  opacity: 0.3;
+  color: var(--cream);
 }
 
 /* ======================================================
@@ -674,12 +743,13 @@ dialog.choice-map::backdrop {
 }
 
 .choice-prompt {
-  font-family: var(--font-serif);
-  font-size: clamp(18px, 2.2vw, 32px);
+  font-family: var(--font-display);
+  font-size: clamp(16px, 1.8vw, 26px);
   text-align: center;
-  color: var(--white);
+  color: var(--cream);
   text-shadow: var(--glow-sm);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .choice-prompt::after {
@@ -705,36 +775,37 @@ dialog.choice-map::backdrop {
 
 .choice-btn {
   width: 100%;
-  padding: 12px 20px;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(104, 96, 81, 0.55) 0%,
-    rgba(174, 159, 112, 0.22) 50%,
-    rgba(243, 223, 143, 0) 100%
-  );
+  padding: 11px 20px;
+  background: transparent;
   border: none;
   cursor: pointer;
   font-family: var(--font-serif);
-  font-size: clamp(15px, 1.8vw, 26px);
-  color: var(--white);
-  text-shadow: 2px 1px 6px rgba(0, 0, 0, 0.7);
+  font-size: clamp(13px, 1.5vw, 22px);
+  color: var(--cream);
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
   letter-spacing: 0.04em;
-  transition:
-    background 0.25s,
-    color 0.25s,
-    opacity 0.25s,
-    text-shadow 0.25s;
+  text-align: left;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.choice-btn::before {
+  content: "›";
+  color: var(--gold);
+  opacity: 0.5;
+  font-size: 1.1em;
+  transition: opacity 0.15s;
 }
 
 .choice-btn:hover {
-  background: radial-gradient(
-    ellipse at center,
-    rgba(140, 126, 100, 0.68) 0%,
-    rgba(200, 182, 128, 0.32) 50%,
-    rgba(243, 223, 143, 0) 100%
-  );
-  color: rgba(255, 220, 130, 0.95);
-  text-shadow: 0 0 18px rgba(255, 208, 0, 0.35);
+  background: rgba(172, 138, 56, 0.1);
+  color: var(--gold-bright);
+}
+
+.choice-btn:hover::before {
+  opacity: 1;
 }
 
 .choice-btn--no {
@@ -852,19 +923,18 @@ dialog.choice-map::backdrop {
 
 .erdtree-subtitle {
   position: absolute;
-  /* Sit just below the frame (frame bottom ≈ 50% + 40vh) */
   top: calc(50% + 40vh + 16px);
   left: 50%;
   transform: translateX(-50%);
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: clamp(13px, 1.6vw, 24px);
-  line-height: 1.55;
+  font-size: clamp(13px, 1.5vw, 22px);
+  line-height: 1.6;
   text-align: center;
-  color: var(--white);
+  color: var(--cream);
   text-shadow: var(--glow-lg);
   max-width: min(540px, 70vw);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.45s ease;
@@ -890,14 +960,14 @@ dialog.choice-map::backdrop {
 }
 
 .about-name {
-  font-family: var(--font-serif);
-  font-weight: 300;
-  font-size: clamp(14px, 2vw, 30px);
-  letter-spacing: 0.4em;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(12px, 1.5vw, 22px);
+  letter-spacing: 0.42em;
   text-transform: uppercase;
-  opacity: 0.6;
+  color: var(--cream-dim);
   padding-bottom: clamp(18px, 2.5vh, 28px);
-  border-bottom: 1px solid rgba(172, 138, 72, 0.22);
+  border-bottom: 1px solid rgba(172, 138, 56, 0.25);
   margin-bottom: clamp(60px, 12vh, 160px);
 }
 
@@ -933,15 +1003,16 @@ dialog.choice-map::backdrop {
   max-width: 680px;
   font-family: var(--font-serif);
   font-weight: 300;
-  font-size: clamp(13px, 1.5vw, 22px);
-  letter-spacing: 0.04em;
-  line-height: 1.78;
-  opacity: 0.68;
+  font-size: clamp(13px, 1.45vw, 20px);
+  letter-spacing: 0.03em;
+  line-height: 1.82;
+  color: var(--cream);
+  opacity: 0.7;
 }
 
 .about-bio em {
   font-style: normal;
-  color: rgba(255, 218, 110, 0.88);
+  color: rgba(210, 172, 80, 0.9);
 }
 
 /* ======================================================
@@ -981,59 +1052,79 @@ dialog.choice-map::backdrop {
 .game-cta-text {
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: clamp(22px, 3.2vw, 48px);
-  line-height: 1.35;
-  color: var(--white);
+  font-size: clamp(20px, 2.8vw, 44px);
+  line-height: 1.38;
+  color: var(--cream);
   text-shadow: var(--glow-sm);
-  max-width: min(720px, 90vw);
+  max-width: min(680px, 90vw);
+  letter-spacing: 0.04em;
 }
 
+/* Elden Ring-style menu panel for platform links */
 .platform-links {
   display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
+  gap: 0;
+  width: min(360px, 90vw);
+  border: 1px solid var(--gold-border);
+  box-shadow:
+    0 0 0 3px rgba(8, 6, 2, 1),
+    0 0 0 5px rgba(140, 110, 35, 0.35),
+    0 0 0 7px rgba(8, 6, 2, 0.98),
+    0 0 40px rgba(0, 0, 0, 0.9);
+  background: rgba(4, 3, 1, 0.96);
+  padding: 12px 0;
 }
 
 .platform-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 24px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 2px;
+  gap: 12px;
+  padding: 11px 28px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   text-decoration: none;
-  color: var(--white);
+  color: var(--cream);
   font-family: var(--font-serif);
-  font-size: clamp(13px, 1.3vw, 19px);
+  font-size: clamp(13px, 1.25vw, 18px);
   white-space: nowrap;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
-  transition:
-    background 0.25s,
-    border-color 0.25s,
-    color 0.25s;
+  letter-spacing: 0.04em;
+  transition: background 0.15s, color 0.15s;
+  border-bottom: 1px solid rgba(140, 110, 35, 0.14);
+}
+
+.platform-btn:last-child {
+  border-bottom: none;
+}
+
+.platform-btn::before {
+  content: "›";
+  color: var(--gold);
+  opacity: 0.5;
+  font-size: 1.15em;
+  transition: opacity 0.15s;
 }
 
 .platform-btn:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(172, 138, 72, 0.65);
-  color: rgba(255, 220, 130, 0.95);
+  background: rgba(172, 138, 56, 0.1);
+  color: var(--gold-bright);
+}
+
+.platform-btn:hover::before {
+  opacity: 1;
 }
 
 .platform-icon {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
-  opacity: 0.7;
+  opacity: 0.55;
+  margin-left: auto;
 }
 
 .ext-icon {
-  width: 10px;
-  height: 10px;
-  flex-shrink: 0;
-  opacity: 0.35;
-  margin-left: 2px;
+  display: none; /* remove external link icon — cleaner in this style */
 }
 
 /* ======================================================
@@ -1058,11 +1149,12 @@ dialog.choice-map::backdrop {
 
 .footer-logo-text {
   font-family: var(--font-display);
-  font-size: clamp(18px, 2.4vw, 34px);
-  letter-spacing: 0.5em;
-  opacity: 0.32;
+  font-size: clamp(16px, 2vw, 28px);
+  letter-spacing: 0.55em;
+  color: var(--cream);
+  opacity: 0.25;
   text-transform: uppercase;
-  text-shadow: 0 0 50px rgba(255, 208, 0, 0.18);
+  text-shadow: 0 0 50px rgba(180, 148, 40, 0.15);
 }
 
 .footer-cols {
@@ -1078,7 +1170,8 @@ dialog.choice-map::backdrop {
   font-weight: 300;
   font-size: clamp(12px, 1.1vw, 16px);
   line-height: 1.65;
-  opacity: 0.38;
+  color: var(--cream);
+  opacity: 0.32;
   max-width: 420px;
 }
 
@@ -1136,53 +1229,58 @@ dialog.choice-map::backdrop {
 .nav-dot {
   position: relative;
   display: block;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.28);
-  border: none;
+  width: 4px;
+  height: 4px;
+  border-radius: 0;              /* square — Elden Ring uses square markers */
+  background: rgba(200, 164, 52, 0.22);
+  border: 1px solid rgba(200, 164, 52, 0.3);
   cursor: pointer;
   padding: 0;
+  transform: rotate(45deg);     /* diamond orientation */
   transition:
     background 0.3s,
     transform 0.3s,
-    box-shadow 0.3s;
+    box-shadow 0.3s,
+    border-color 0.3s;
 }
 
 .nav-dot::before {
   content: "";
   position: absolute;
-  inset: -10px;
+  inset: -12px;
+  transform: rotate(-45deg);    /* keep hit-area axis-aligned */
 }
 
 .nav-dot.active {
   background: var(--gold);
-  box-shadow: 0 0 8px rgba(255, 208, 0, 0.8);
-  transform: scale(2.2);
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 10px rgba(180, 148, 40, 0.9), 0 0 4px rgba(224, 186, 60, 0.7);
+  transform: rotate(45deg) scale(1.8);
 }
 
 .nav-label {
   position: absolute;
-  right: calc(100% + 16px);
+  right: calc(100% + 18px);
   top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(-50%) rotate(-45deg);  /* counteract parent rotation */
   font-family: var(--font-serif);
   font-size: 11px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   white-space: nowrap;
-  color: var(--white);
+  color: var(--cream);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
 }
 
 .sidenav-list li:hover .nav-label {
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .sidenav-list li:has(.nav-dot.active) .nav-label {
-  opacity: 0.85;
-  color: var(--gold-dim);
+  opacity: 0.8;
+  color: var(--gold);
 }
 
 /* ======================================================

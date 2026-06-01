@@ -680,6 +680,18 @@ body {
   border-top: 1px solid rgba(200, 190, 160, 0.12);
 }
 
+.npc-topic-btn--seek {
+  color: var(--gold);
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(200, 190, 160, 0.14);
+}
+
+.npc-topic-btn--seek:hover {
+  background: rgba(200, 164, 52, 0.1);
+  color: var(--gold-bright);
+}
+
 .npc-topic-btn--leave {
   color: rgba(240, 226, 192, 0.42);
   margin-top: 6px;

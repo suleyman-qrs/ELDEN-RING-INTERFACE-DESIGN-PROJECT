@@ -713,33 +713,88 @@ class SideNav {
 ────────────────────────────────────────────────────── */
 
 class ChoiceMap {
-  /** @type {HTMLElement} */        #fadeEl;
-  /** @type {AudioController} */    #audio;
+  /** @type {HTMLDialogElement} */ #dialog;
+  /** @type {HTMLElement} */       #fadeEl;
+  /** @type {AudioController} */   #audio;
 
   /** @param {AudioController} audio */
   constructor(audio) {
+    this.#dialog = /** @type {HTMLDialogElement} */ (document.getElementById("npc-dialog-enia"));
     this.#fadeEl = /** @type {HTMLElement} */ (document.getElementById("fade-map"));
     this.#audio  = audio;
 
     const zone    = document.getElementById("rt-zone-enia");
     const eniaImg = document.getElementById("rt-img-enia");
     let eniaActive = false;
+
     zone?.addEventListener("mouseenter", () => eniaImg?.classList.add("rt-npc--glow"));
     zone?.addEventListener("mouseleave", () => { if (!eniaActive) eniaImg?.classList.remove("rt-npc--glow"); });
     zone?.addEventListener("click", () => {
       eniaActive = true;
       eniaImg?.classList.add("rt-npc--glow");
       sceneZoom.zoomTo(78, 62);
-      // Brief zoom-in pause before cutting to black
-      setTimeout(() => {
-        sceneZoom.zoomOut();
-        this.#transitionToNarration();
-      }, 600);
+      this.#dialog.showModal();
+    });
+
+    // Audio topic buttons — fade dialog, show subtitle, play, restore
+    this.#dialog.querySelectorAll(".npc-topic-btn[data-audio]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.preventDefault();
+        const srcs = (/** @type {HTMLElement} */ (btn).dataset.audio ?? "").split(",").map(s => s.trim()).filter(Boolean);
+        const line = /** @type {HTMLElement} */ (btn).dataset.subtitle ?? btn.textContent?.trim() ?? "";
+        this.#playTopic(srcs, line);
+      });
+    });
+
+    // "Seek the Elden Ring" — close dialog then transition
+    this.#dialog.querySelector("[data-action='seek-elden-ring']")?.addEventListener("click", e => {
+      e.preventDefault();
+      this.#dialog.close();
+      eniaActive = false;
+      sceneZoom.zoomOut();
+      document.body.style.overflow = "";
+      this.#transitionToNarration();
+    });
+
+    // Leave
+    this.#dialog.querySelector(".npc-topic-btn--leave")?.addEventListener("click", e => {
+      e.preventDefault();
+      eniaActive = false;
+      eniaImg?.classList.remove("rt-npc--glow");
+      sceneZoom.zoomOut();
+      this.#dialog.close();
     });
   }
 
+  /**
+   * Fades dialog, shows subtitle, plays audio, then restores.
+   * @param {string[]} srcs
+   * @param {string}   line
+   */
+  #playTopic(srcs, line) {
+    this.#dialog.classList.add("npc-dialog--faded");
+
+    let done = false;
+    const restore = () => {
+      if (done) return;
+      done = true;
+      subtitle.hide();
+      setTimeout(() => this.#dialog.classList.remove("npc-dialog--faded"), DIALOGUE_TIMING.SUBTITLE_RESTORE);
+    };
+    const onSkip = () => {
+      if (done) return;
+      this.#audio.stopDialogue();
+      restore();
+    };
+
+    setTimeout(() => {
+      subtitle.show("Enia, the Finger Reader", line);
+      this.#audio.playDialogueLine(srcs, restore);
+      setTimeout(() => document.addEventListener("click", onSkip, { capture: true, once: true }), DIALOGUE_TIMING.SKIP_ARM);
+    }, DIALOGUE_TIMING.DIALOG_FADE);
+  }
+
   #transitionToNarration() {
-    // Cut all roundtable audio immediately — the black fade provides the bridge.
     this.#audio.stopDialogue();
     this.#audio.stopSfx();
     this.#audio.stopBgmNow();
@@ -747,7 +802,6 @@ class ChoiceMap {
     this.#fadeEl.classList.add("active");
     setTimeout(() => {
       document.getElementById("erdtree-scroll")?.scrollIntoView({ behavior: "instant", block: "start" });
-      // Start scroll music just as the fade lifts so it is the first thing heard.
       this.#audio.startBgm("audio/music/scroll music.wav", 0.35);
       setTimeout(() => this.#fadeEl.classList.remove("active"), 50);
     }, 750);

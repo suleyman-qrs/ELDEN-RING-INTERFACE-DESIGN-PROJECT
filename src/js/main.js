@@ -994,11 +994,14 @@ class RoundtableNPC {
     dialog.querySelectorAll(".npc-topic-btn[data-audio]").forEach(btn => {
       btn.addEventListener("click", e => {
         e.preventDefault();
-        const el       = /** @type {HTMLElement} */ (btn);
-        const srcs     = (el.dataset.audio ?? "").split(",").map(s => s.trim()).filter(Boolean);
-        const line     = el.dataset.subtitle ?? btn.textContent?.trim() ?? "";
+        const el   = /** @type {HTMLElement} */ (btn);
+        const srcs = (el.dataset.audio ?? "").split(",").map(s => s.trim()).filter(Boolean);
+        const line = el.dataset.subtitle ?? btn.textContent?.trim() ?? "";
+        // Reveal the follow-up topic as soon as this one is selected —
+        // don't gate it on audio completion, which any stray click can interrupt.
         const unlockId = el.dataset.unlocks ?? null;
-        this.#playTopic(dialog, srcs, line, unlockId);
+        if (unlockId) document.getElementById(unlockId)?.removeAttribute("hidden");
+        this.#playTopic(dialog, srcs, line);
       });
     });
 
@@ -1016,38 +1019,29 @@ class RoundtableNPC {
   /**
    * Fades out the dialog, shows subtitle, plays audio sequence, then restores.
    * Clicking anywhere while audio plays skips it and restores the dialog.
-   * If unlockId is provided, the element with that ID has its `hidden` attribute
-   * removed once the audio finishes (not on skip).
    * @param {HTMLDialogElement} dialog
    * @param {string[]}          srcs
    * @param {string}            line
-   * @param {string | null}     [unlockId]
    */
-  #playTopic(dialog, srcs, line, unlockId = null) {
+  #playTopic(dialog, srcs, line) {
     dialog.classList.add("npc-dialog--faded");
 
     let done = false;
-
-    /** @param {boolean} [completed] — true when audio ended naturally (not skipped) */
-    const restore = (completed = false) => {
+    const restore = () => {
       if (done) return;
       done = true;
       subtitle.hide();
-      // Reveal the follow-up option only when the dialogue played to the end
-      if (completed && unlockId) {
-        document.getElementById(unlockId)?.removeAttribute("hidden");
-      }
       setTimeout(() => dialog.classList.remove("npc-dialog--faded"), DIALOGUE_TIMING.SUBTITLE_RESTORE);
     };
     const onSkip = () => {
       if (done) return;
       this.#audio.stopDialogue();
-      restore(false);
+      restore();
     };
 
     setTimeout(() => {
       subtitle.show(this.#name, line);
-      this.#audio.playDialogueLine(srcs, () => restore(true));
+      this.#audio.playDialogueLine(srcs, restore);
       // Arm the skip listener after SKIP_ARM ms to avoid catching the
       // triggering click. Capture phase so it fires before element handlers.
       setTimeout(() => document.addEventListener("click", onSkip, { capture: true, once: true }), DIALOGUE_TIMING.SKIP_ARM);

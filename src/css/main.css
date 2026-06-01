@@ -545,9 +545,13 @@ body {
   border-radius: 2px;
 }
 
-/* NPC dialogue dialogs */
+/* ── NPC DIALOGUE — matches the in-game info/menu panel ──
+   Centered, warm dark-gray bg, plain 1px border, no gold.
+   Controller hints sit below the box.
+────────────────────────────────────────────────────────── */
+
 .npc-dialog {
-  transition: opacity 0.35s ease;
+  transition: opacity 0.3s ease;
 }
 
 .npc-dialog.npc-dialog--faded {
@@ -560,149 +564,134 @@ body {
 }
 
 .npc-dialog[open] {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0;
-  outline: none;
-  background: rgba(4, 3, 1, 0.97);
-  width: min(500px, 90vw);
-  max-height: 85vh;
-  overflow-y: auto;
-  padding: 0;
+  /* Centered */
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   margin: 0;
-  /* Elden Ring layered parchment border */
-  border: 1px solid var(--gold-border);
-  box-shadow:
-    0 0 0 3px rgba(8, 6, 2, 1),
-    0 0 0 5px rgba(140, 110, 35, 0.4),
-    0 0 0 7px rgba(8, 6, 2, 0.98),
-    0 0 60px rgba(0, 0, 0, 0.98),
-    inset 0 0 50px rgba(0, 0, 0, 0.6);
-}
 
-.npc-dialog::backdrop {
-  background: transparent;
-}
+  /* Size — matches the game's ~60% width info panel */
+  width: min(600px, 72vw);
+  max-height: 72vh;
+  overflow: hidden;
 
-/* Inner inset decorative frame */
-.npc-dialog[open]::before {
-  content: "";
-  position: absolute;
-  inset: 7px;
-  border: 1px solid rgba(140, 110, 35, 0.18);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.npc-dialog__title {
-  position: relative;
-  z-index: 1;
-  font-family: var(--font-display);
-  font-size: clamp(12px, 1.3vw, 18px);
-  text-align: center;
-  color: var(--cream);
-  text-shadow: var(--glow-sm);
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  padding: clamp(24px, 4vh, 40px) clamp(28px, 5vw, 56px) 0;
-}
-
-/* Gold crown line above title */
-.npc-dialog__title::before {
-  content: "";
-  display: block;
-  margin: 0 auto 18px;
-  width: 56px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--gold-line), transparent);
-}
-
-/* Gold rule below title */
-.npc-dialog__title::after {
-  content: "";
-  display: block;
-  margin: 18px auto 0;
-  width: 100%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--gold-line), transparent);
-}
-
-.npc-dialog__topics {
-  position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  width: 100%;
-  padding: clamp(8px, 1.5vh, 16px) 0 clamp(20px, 3vh, 36px);
+  outline: none;
+
+  /* Warm charcoal — game uses a dark brownish-gray, not pure black */
+  background: rgba(22, 19, 14, 0.96);
+
+  /* Single thin neutral border — no gold, no layering */
+  border: 1px solid rgba(190, 180, 160, 0.28);
+
+  /* Subtle drop shadow only */
+  box-shadow: 0 8px 60px rgba(0, 0, 0, 0.95);
+
+  padding: 0;
+}
+
+/* Dark semi-transparent backdrop — scene dims behind the dialog */
+.npc-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+/* No pseudo-element frame */
+.npc-dialog[open]::before {
+  display: none;
+}
+
+/* ── Title row ───────────────────────────────────────── */
+
+.npc-dialog__title {
+  font-family: var(--font-display);
+  font-size: clamp(11px, 1vw, 15px);
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--cream);
+  padding: clamp(18px, 2.8vh, 28px) 32px clamp(14px, 2vh, 22px);
+  /* Thin separator identical to the screenshot's title underline */
+  border-bottom: 1px solid rgba(190, 180, 160, 0.2);
+}
+
+/* No decorative lines needed */
+.npc-dialog__title::before,
+.npc-dialog__title::after {
+  display: none;
+}
+
+/* ── Options list ────────────────────────────────────── */
+
+.npc-dialog__topics {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: clamp(14px, 2.5vh, 24px) 0 clamp(32px, 5vh, 52px);
 }
 
 .npc-topic-btn {
   width: 100%;
-  padding: 10px clamp(28px, 5vw, 56px);
+  padding: 8px 32px;
   background: transparent;
   border: none;
   cursor: pointer;
   font-family: var(--font-serif);
-  font-size: clamp(13px, 1.35vw, 20px);
+  font-size: clamp(13px, 1.2vw, 17px);
+  font-weight: 400;
   color: var(--cream);
-  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-align: left;
-  transition: background 0.15s, color 0.15s;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
+  text-shadow: none;
+  transition: background 0.1s, color 0.1s;
 }
 
-/* Arrow indicator — separate element so it doesn't affect text indent */
+/* No arrow — matches the screenshot style */
 .npc-topic-btn::before {
-  content: "›";
-  flex-shrink: 0;
-  font-size: 1.1em;
-  color: var(--gold);
-  opacity: 0.5;
-  transition: opacity 0.15s, color 0.15s;
-  line-height: 1;
+  display: none;
 }
 
 .npc-topic-btn:hover {
-  background: rgba(172, 138, 56, 0.1);
-  color: var(--gold-bright);
-}
-
-.npc-topic-btn:hover::before {
-  opacity: 1;
-  color: var(--gold-bright);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--white);
 }
 
 .npc-topic-btn--seek {
-  color: var(--gold);
-  border-top: 1px solid rgba(140, 110, 35, 0.22);
-  margin-top: 4px;
+  color: var(--cream);
+  margin-top: 6px;
   padding-top: 14px;
+  border-top: 1px solid rgba(190, 180, 160, 0.14);
 }
 
 .npc-topic-btn--leave {
-  color: rgba(240, 226, 192, 0.28);
-  border-top: 1px solid rgba(140, 110, 35, 0.14);
-  margin-top: 2px;
-  padding-top: 12px;
+  color: rgba(240, 226, 192, 0.45);
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(190, 180, 160, 0.1);
 }
 
 .npc-topic-btn--leave:hover {
-  color: var(--cream-dim);
-  background: transparent;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--cream);
 }
 
-.npc-topic-btn--leave:hover::before {
-  opacity: 0.3;
-  color: var(--cream);
+/* ── Keyboard hints — below the box ─────────────────── */
+
+.npc-dialog__topics::after {
+  content: "⏎ :OK    Esc :Close";
+  position: absolute;
+  /* Place just below the dialog (dialog is ~50% centred) */
+  top: calc(50% + min(300px, 36vh) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-sans);
+  font-size: clamp(10px, 0.85vw, 13px);
+  letter-spacing: 0.1em;
+  color: rgba(240, 226, 192, 0.4);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* ======================================================
@@ -711,109 +700,83 @@ body {
 
 dialog.choice-map {
   outline: none;
-  background: rgba(0, 0, 0, 0.96);
-  width: min(560px, 90vw);
-  padding: clamp(44px, 7vh, 80px) clamp(32px, 5vw, 64px);
+  background: rgba(22, 19, 14, 0.96);
+  width: min(600px, 72vw);
+  padding: 0;
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   margin: 0;
-
-  /* Ornate parchment border */
-  border: 1px solid rgba(172, 138, 72, 0.55);
-  box-shadow:
-    0 0 0 3px rgba(14, 10, 3, 1),
-    0 0 0 5px rgba(144, 114, 56, 0.45),
-    0 0 0 7px rgba(14, 10, 3, 0.98),
-    0 0 80px rgba(0, 0, 0, 0.98),
-    inset 0 0 40px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(190, 180, 160, 0.28);
+  box-shadow: 0 8px 60px rgba(0, 0, 0, 0.95);
 }
 
 dialog[open].choice-map {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 40px;
+  gap: 0;
 }
 
 dialog.choice-map::backdrop {
-  background: rgba(0, 0, 0, 0.78);
-  backdrop-filter: blur(3px);
+  background: rgba(0, 0, 0, 0.72);
 }
 
 .choice-prompt {
   font-family: var(--font-display);
-  font-size: clamp(16px, 1.8vw, 26px);
+  font-size: clamp(11px, 1vw, 15px);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
   text-align: center;
   color: var(--cream);
-  text-shadow: var(--glow-sm);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  padding: clamp(18px, 2.8vh, 28px) 32px clamp(14px, 2vh, 22px);
+  border-bottom: 1px solid rgba(190, 180, 160, 0.2);
 }
 
 .choice-prompt::after {
-  content: "";
-  display: block;
-  margin: 20px auto 0;
-  width: 72px;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(172, 138, 72, 0.45),
-    transparent
-  );
+  display: none;
 }
 
 .choice-form {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  width: 100%;
+  gap: 0;
+  padding: clamp(14px, 2.5vh, 24px) 0 clamp(24px, 4vh, 40px);
 }
 
 .choice-btn {
   width: 100%;
-  padding: 11px 20px;
+  padding: 8px 32px;
   background: transparent;
   border: none;
   cursor: pointer;
   font-family: var(--font-serif);
-  font-size: clamp(13px, 1.5vw, 22px);
+  font-size: clamp(13px, 1.2vw, 17px);
   color: var(--cream);
-  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-align: left;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.1s, color 0.1s;
 }
 
 .choice-btn::before {
-  content: "›";
-  color: var(--gold);
-  opacity: 0.5;
-  font-size: 1.1em;
-  transition: opacity 0.15s;
+  display: none;
 }
 
 .choice-btn:hover {
-  background: rgba(172, 138, 56, 0.1);
-  color: var(--gold-bright);
-}
-
-.choice-btn:hover::before {
-  opacity: 1;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--white);
 }
 
 .choice-btn--no {
-  opacity: 0.42;
+  color: rgba(240, 226, 192, 0.45);
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(190, 180, 160, 0.1);
 }
 
 .choice-btn--no:hover {
-  opacity: 0.72;
+  color: var(--cream);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 /* ======================================================

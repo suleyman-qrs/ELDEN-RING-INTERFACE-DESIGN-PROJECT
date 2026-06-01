@@ -738,17 +738,28 @@ class ErdtreeHScroll {
 
     this.#stopPlay();
 
+    /** Whether the scene uses a video/boss overlay instead of canvas frames. */
+    const isOverlay = !!(SCENES[idx].videoId || SCENES[idx].bossId);
+
     if (isFirst) {
       this.#syncOverlay(idx);
       this.#checkChapterCues();
-      if (!SCENES[idx].videoId) {
-        // PNG-sequence scene — run the frame animation loop.
+
+      if (!isOverlay) {
+        // Pure PNG-sequence: run the frame animation; #rafId blocks wheel handler.
         this.#lastTs = null;
         this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
-      } else if (idx >= SCENES.length - 1) {
-        // Last scene is a video — unlock scroll immediately.
-        this.#done = true;
-        document.body.style.overflow = "";
+      } else {
+        // Video / boss overlay: no RAF, but hold a brief slide-lock so scroll
+        // momentum can't immediately skip to the next scene.
+        this.#sliding = true;
+        this.#slideTimer = setTimeout(() => {
+          this.#sliding = false;
+          if (idx >= SCENES.length - 1) {
+            this.#done = true;
+            document.body.style.overflow = "";
+          }
+        }, 600);
       }
       return;
     }
@@ -759,15 +770,18 @@ class ErdtreeHScroll {
     const outX = direction === 1 ? "-100%" : "100%";
     const inX  = direction === 1 ?  "100%" : "-100%";
 
-    el.style.transition = "transform 0.3s ease-in";
-    el.style.transform  = `translateX(${outX})`;
+    // Only animate the canvas element when it's actually visible (PNG scenes).
+    if (!isOverlay) {
+      el.style.transition = "transform 0.3s ease-in";
+      el.style.transform  = `translateX(${outX})`;
+    }
 
     this.#slideTimer = setTimeout(() => {
       this.#syncOverlay(idx);
       this.#checkChapterCues();
 
-      if (!SCENES[idx].videoId) {
-        // PNG-sequence scene — seek and start frame loop.
+      if (!isOverlay) {
+        // PNG scene: seek canvas and slide it in.
         this.#player.seek(this.#frame);
         el.style.transition = "none";
         el.style.transform  = `translateX(${inX})`;
@@ -777,7 +791,7 @@ class ErdtreeHScroll {
         this.#lastTs = null;
         this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
       } else {
-        // Video scene — no frame loop needed.
+        // Video / boss overlay: reset any lingering canvas transform.
         el.style.transition = "";
         el.style.transform  = "";
         if (idx >= SCENES.length - 1) {

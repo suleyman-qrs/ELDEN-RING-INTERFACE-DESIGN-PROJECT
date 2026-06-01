@@ -1179,11 +1179,11 @@ class RoundtableParallax {
     //          parallax headroom so edges are never revealed).
     /** @type {Array<[string, number, number, number]>} */
     const defs = [
-      ["rt-base",       0.005, 0.004, 1.05],  // background — barely moves
-      ["rt-img-gideon", 0.012, 0.009, 1],
-      ["rt-img-d",      0.015, 0.011, 1],
-      ["rt-img-rogier", 0.018, 0.013, 1],
-      ["rt-img-enia",   0.022, 0.016, 1],
+      ["rt-base",       0.002, 0.0015, 1.05],
+      ["rt-img-gideon", 0.004, 0.003,  1],
+      ["rt-img-d",      0.005, 0.004,  1],
+      ["rt-img-rogier", 0.007, 0.005,  1],
+      ["rt-img-enia",   0.009, 0.007,  1],
     ];
     for (const [id, rx, ry, scale] of defs) {
       const el = document.getElementById(id);

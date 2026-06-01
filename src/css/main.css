@@ -1254,16 +1254,23 @@ body {
   display: flex;
   flex-direction: column;
   gap: 26px;
-  align-items: flex-end;   /* all diamonds right-aligned */
+  align-items: flex-end;
 }
 
-/* The button IS the diamond — keeps all dots at the same X position
-   regardless of label length. Label is positioned absolutely to the left. */
+/* Each row: label left, diamond right, in normal flex flow */
+.sidenav-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+/* The button IS the diamond */
 .nav-dot {
-  position: relative;
+  flex-shrink: 0;
   display: block;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   padding: 0;
   border-radius: 0;
   background: rgba(200, 164, 52, 0.2);
@@ -1271,24 +1278,14 @@ body {
   cursor: pointer;
   transform: rotate(45deg);
   transition:
-    background  0.25s ease,
+    background   0.25s ease,
     border-color 0.25s ease,
-    box-shadow  0.25s ease,
-    transform   0.25s ease;
+    box-shadow   0.25s ease,
+    transform    0.25s ease;
 }
 
-/* Large hit-area so the label region is also clickable */
-.nav-dot::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  right: -2px;
-  transform: translateY(-50%) rotate(-45deg);
-  width: 180px;
-  height: 44px;
-}
-
-.nav-dot:hover {
+.nav-dot:hover,
+.sidenav-list li:hover .nav-dot {
   background: rgba(200, 164, 52, 0.55);
   border-color: rgba(200, 164, 52, 0.8);
   transform: rotate(45deg) scale(1.4);
@@ -1301,13 +1298,8 @@ body {
   transform: rotate(45deg) scale(1.9);
 }
 
-/* Label — absolutely positioned to the left of the diamond.
-   Slides in from the right on li hover. */
+/* Label — in normal flex flow, left of the diamond. Slides in on hover. */
 .nav-label {
-  position: absolute;
-  top: 50%;
-  right: calc(100% + 18px);
-  transform: translateY(-50%) rotate(-45deg) translateX(14px);
   font-family: var(--font-sans);
   font-size: clamp(9px, 0.75vw, 11px);
   letter-spacing: 0.22em;
@@ -1316,23 +1308,22 @@ body {
   color: rgba(240, 226, 192, 0.55);
   opacity: 0;
   pointer-events: none;
+  transform: translateX(8px);
   transition:
     opacity   0.28s ease,
     transform 0.28s ease,
     color     0.28s ease;
 }
 
-/* Slide label in from the right on hover */
 .sidenav-list li:hover .nav-label {
   opacity: 1;
-  transform: translateY(-50%) rotate(-45deg) translateX(0);
+  transform: translateX(0);
   color: var(--cream);
 }
 
-/* Active: label visible at reduced opacity */
 .sidenav-list li:has(.nav-dot.active) .nav-label {
   opacity: 0.7;
-  transform: translateY(-50%) rotate(-45deg) translateX(0);
+  transform: translateX(0);
   color: var(--gold);
 }
 

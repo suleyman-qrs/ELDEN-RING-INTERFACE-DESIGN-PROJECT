@@ -1,31 +1,25 @@
-<section id="erdtree-scroll" class="erdtree-hscroll" aria-label="Boss Showcase"></section>
-
+<section id="erdtree-scroll" class="erdtree-hscroll" aria-label="The Erdtree"></section>
 <div id="erdtree-stage" class="erdtree-stage" aria-hidden="true">
+  <div class="erdtree-frame">
+    <canvas id="erdtree-canvas"></canvas>
 
-  <!-- Boss slides — JS toggles .active to reveal each one -->
-  <div class="boss-slide" id="boss-godrick">
-    <img class="boss-slide__bg"   src="images/bosses/godrick_layer.png" alt="">
-    <img class="boss-slide__char" src="images/bosses/godrick.png"       alt="">
-  </div>
-
-  <div class="boss-slide" id="boss-malenia">
-    <img class="boss-slide__bg"   src="images/bosses/malenia_background.png" alt="">
-    <img class="boss-slide__char" src="images/bosses/malenia.png"            alt="">
-  </div>
-
-  <div class="boss-slide" id="boss-margitt">
-    <img class="boss-slide__bg"   src="images/bosses/margitt_background.png" alt="">
-    <img class="boss-slide__char" src="images/bosses/margitt.png"            alt="">
-  </div>
-
-  <div class="boss-slide" id="boss-radahn">
-    <img class="boss-slide__bg"   src="images/bosses/rahdan_background.png" alt="">
-    <img class="boss-slide__char" src="images/bosses/rahdan.png"            alt="">
-  </div>
-
-  <div class="boss-slide" id="boss-rykard">
-    <img class="boss-slide__bg"   src="images/bosses/rykard_background.png" alt="">
-    <img class="boss-slide__char" src="images/bosses/rykard.png"            alt="">
+    <!-- Boss image overlays — shown instead of the canvas for boss scenes -->
+    <div class="boss-slide" id="boss-godrick">
+      <img class="boss-slide__bg"   src="images/bosses/godrick_layer.png" alt="">
+      <img class="boss-slide__char" src="images/bosses/godrick.png"       alt="">
+    </div>
+    <div class="boss-slide" id="boss-malenia">
+      <img class="boss-slide__bg"   src="images/bosses/malenia_background.png" alt="">
+      <img class="boss-slide__char" src="images/bosses/malenia.png"            alt="">
+    </div>
+    <div class="boss-slide" id="boss-radahn">
+      <img class="boss-slide__bg"   src="images/bosses/rahdan_background.png" alt="">
+      <img class="boss-slide__char" src="images/bosses/rahdan.png"            alt="">
+    </div>
+    <div class="boss-slide" id="boss-rykard">
+      <img class="boss-slide__bg"   src="images/bosses/rykard_background.png" alt="">
+      <img class="boss-slide__char" src="images/bosses/rykard.png"            alt="">
+    </div>
   </div>
 
   <div class="erdtree-vignette"></div>

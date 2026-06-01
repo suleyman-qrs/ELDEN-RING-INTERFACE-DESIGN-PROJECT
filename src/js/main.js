@@ -237,79 +237,281 @@ class AudioController {
 }
 
 /* ──────────────────────────────────────────────────────
-   BOSS DATA
-   Five bosses shown as layered images (background + character).
-   Each entry drives one slide in the boss showcase section.
+   SCENE DATA
+   12 PNG sequences, one per narration line.
+   Boss scenes (Godrick, Malenia, Radahn, Rykard) show a
+   static layered image instead of the frame animation —
+   indicated by the optional `bossId` field.
 ────────────────────────────────────────────────────── */
 
 /**
- * @typedef {{ id: string, subtitle: string, audio: string[] }} BossData
+ * @typedef {{ dir: string, prefix: string, count: number, audio: string[], text: string, loop?: boolean, bossId?: string }} SceneData
  */
 
-/** @type {readonly BossData[]} */
-const BOSSES = Object.freeze([
+/** @type {readonly SceneData[]} */
+const SCENES = Object.freeze([
   {
-    id:       "godrick",
-    subtitle: "Godrick, the feeble.",
-    audio:    ["audio/dialogue/Godrick, the feeble.wav"],
+    dir: "Scenes/01_Elden_Ring",
+    prefix: "Elden_ring",
+    count: 55,
+    audio: ["audio/dialogue/Elden Ring.wav", "audio/dialogue/O Elden Ring.wav"],
+    text: "Elden Ring. O, Elden Ring.",
   },
   {
-    id:       "malenia",
-    subtitle: "Malenia, decayed from birth.",
-    audio:    ["audio/dialogue/Malenia, decayed from birth.wav"],
+    dir: "Scenes/02_Its_Gold",
+    prefix: "its_Gold_commanded",
+    count: 59,
+    audio: ["audio/dialogue/its gold commanded the very stars.wav"],
+    text: "Its gold commanded<br>the very stars,",
   },
   {
-    id:       "margitt",
-    subtitle: "Margit, the Fell Omen.",
-    audio:    [],
+    dir: "Scenes/03_Shattered",
+    prefix: "shattered",
+    count: 63,
+    audio: ["audio/dialogue/Shattered, by someone, or something.wav"],
+    text: "Shattered, by someone,<br>or something.",
   },
   {
-    id:       "radahn",
-    subtitle: "General Radahn, slayer of giants.",
-    audio:    ["audio/dialogue/General Radahn, slayer of giants.wav"],
+    dir: "Scenes/04_Godrick",
+    prefix: "godrick",
+    count: 58,
+    audio: ["audio/dialogue/Godrick, the feeble.wav"],
+    text: "Godrick, the feeble.",
+    bossId: "godrick",
   },
   {
-    id:       "rykard",
-    subtitle: "Rykard, the tyrannical serpent.",
-    audio:    ["audio/dialogue/Rykard, the tyrannical serpent.wav"],
+    dir: "Scenes/05_Malenia",
+    prefix: "malenia",
+    count: 60,
+    audio: ["audio/dialogue/Malenia, decayed from birth.wav"],
+    text: "Malenia, decayed from birth.",
+    bossId: "malenia",
+  },
+  {
+    dir: "Scenes/06_General_Radah",
+    prefix: "general_radahn",
+    count: 47,
+    audio: ["audio/dialogue/General Radahn, slayer of giants.wav"],
+    text: "General Radahn,<br>slayer of giants.",
+    bossId: "radahn",
+  },
+  {
+    dir: "Scenes/07_Rykard",
+    prefix: "rykard",
+    count: 61,
+    audio: ["audio/dialogue/Rykard, the tyrannical serpent.wav"],
+    text: "Rykard,<br>the tyrannical serpent.",
+    bossId: "rykard",
+  },
+  {
+    dir: "Scenes/08_Morgott",
+    prefix: "morgott",
+    count: 64,
+    audio: ["audio/dialogue/And Morgott, Prince of the Omen.wav"],
+    text: "And Morgott,<br>Prince of the Omen.",
+  },
+  {
+    dir: "Scenes/09_Each_Inheriting",
+    prefix: "each_inheriting",
+    count: 47,
+    audio: ["audio/dialogue/Each, inheriting their own shard, played a part in the Shattering.wav"],
+    text: "Each, inheriting their own shard,<br>played a part in the Shattering,",
+  },
+  {
+    dir: "Scenes/10_A_War",
+    prefix: "a_war",
+    count: 43,
+    audio: ["audio/dialogue/a war with no end, and no victor.wav"],
+    text: "a war with no end,<br>and no victor.",
+  },
+  {
+    dir: "Scenes/11_and_so_the_two_Fingers",
+    prefix: "and_so_the_two_fingers",
+    count: 45,
+    audio: ["audio/dialogue/And so the Two Fingers call upon ye, the Tarnished.wav"],
+    text: "And so the Two Fingers<br>call upon ye, the Tarnished.",
+  },
+  {
+    dir: "Scenes/12_To_cross_the_fog",
+    prefix: "to_cross_the_fog",
+    count: 92,
+    audio: ["audio/dialogue/To cross the Sea of Fog, to the Lands Between To seek the Elden Ring. Seek the Elden Ring.wav"],
+    text: "To cross the Sea of Fog,<br>to the Lands Between.<br><br>To seek the Elden Ring.<br>Seek the Elden Ring.",
+    loop: true,
   },
 ]);
 
+const TOTAL_FRAMES = SCENES.reduce((sum, s) => sum + s.count, 0);
+
 /* ──────────────────────────────────────────────────────
-   BOSS SHOWCASE PLAYER
-   Scroll-driven image carousel — one boss per "scene".
-   Each wheel tick advances or rewinds by one boss.
-   Slides use a horizontal CSS slide transition matching
-   the direction of scroll.
+   NARRATION CANVAS PLAYER
+   Windowed frame cache — keeps ±25 frames in memory,
+   evicting the rest. Preloads ahead on each seek.
+────────────────────────────────────────────────────── */
+
+class ErdtreePlayer {
+  static #AHEAD  = 22;
+  static #BEHIND = 6;
+
+  /** @type {HTMLCanvasElement} */          #canvas;
+  /** @type {CanvasRenderingContext2D} */   #ctx;
+  /** @type {Map<number, HTMLImageElement>} */ #cache   = new Map();
+  /** @type {Set<number>} */                #loading = new Set();
+  #currentFrame = -1;
+
+  /** @param {HTMLCanvasElement} canvas */
+  constructor(canvas) {
+    this.#canvas = canvas;
+    this.#ctx    = /** @type {CanvasRenderingContext2D} */ (canvas.getContext("2d"));
+    this.#resize();
+    window.addEventListener("resize", () => this.#resize(), { passive: true });
+  }
+
+  #resize() {
+    const p = this.#canvas.parentElement;
+    this.#canvas.width  = p?.clientWidth  ?? window.innerWidth;
+    this.#canvas.height = p?.clientHeight ?? window.innerHeight;
+    if (this.#currentFrame >= 0) {
+      const img = this.#cache.get(this.#currentFrame);
+      if (img) this.#draw(img);
+    }
+  }
+
+  /** @param {number} i - global frame index */
+  #src(i) {
+    let g = i;
+    for (const scene of SCENES) {
+      if (g < scene.count) {
+        return `${scene.dir}/${scene.prefix}${String(g).padStart(2, "0")}.png`;
+      }
+      g -= scene.count;
+    }
+    const last = SCENES.at(-1);
+    return `${last.dir}/${last.prefix}${String(last.count - 1).padStart(2, "0")}.png`;
+  }
+
+  /** @param {number} i */
+  #load(i) {
+    if (i < 0 || i >= TOTAL_FRAMES) return;
+    if (this.#cache.has(i) || this.#loading.has(i)) return;
+    this.#loading.add(i);
+    const img = new Image();
+    img.onload  = () => {
+      this.#loading.delete(i);
+      this.#cache.set(i, img);
+      if (i === this.#currentFrame) this.#draw(img);
+    };
+    img.onerror = () => this.#loading.delete(i);
+    img.src = this.#src(i);
+  }
+
+  /** @param {number} center */
+  #evict(center) {
+    for (const k of this.#cache.keys()) {
+      if (k < center - ErdtreePlayer.#BEHIND || k > center + ErdtreePlayer.#AHEAD) {
+        this.#cache.delete(k);
+      }
+    }
+  }
+
+  /** @param {HTMLImageElement} img */
+  #draw(img) {
+    const { width: cw, height: ch } = this.#canvas;
+    const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+    const w = img.naturalWidth  * scale;
+    const h = img.naturalHeight * scale;
+    this.#ctx.clearRect(0, 0, cw, ch);
+    this.#ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
+  }
+
+  /** @param {number} frameIdx */
+  seek(frameIdx) {
+    frameIdx = Math.max(0, Math.min(TOTAL_FRAMES - 1, frameIdx));
+    this.#evict(frameIdx);
+    const end = Math.min(frameIdx + ErdtreePlayer.#AHEAD, TOTAL_FRAMES - 1);
+    for (let i = frameIdx; i <= end; i++) this.#load(i);
+    if (frameIdx !== this.#currentFrame) {
+      this.#currentFrame = frameIdx;
+      const img = this.#cache.get(frameIdx);
+      if (img) this.#draw(img);
+    }
+  }
+
+  init() {
+    for (let i = 0; i < Math.min(30, TOTAL_FRAMES); i++) this.#load(i);
+  }
+}
+
+/* ──────────────────────────────────────────────────────
+   CHAPTER CUES
+   One cue fires at the first frame of each scene.
+   "Giving life" has no dedicated scene folder so it is
+   inserted as a mid-scene-01 cue.
+────────────────────────────────────────────────────── */
+
+/**
+ * @typedef {{ frame: number, audio: string[], text: string, loop: boolean }} ChapterCue
+ * @type {readonly ChapterCue[]}
+ */
+const CHAPTER_CUES = (() => {
+  let frame = 0;
+  const cues = SCENES.map(s => {
+    const cue = { frame, audio: s.audio, text: s.text, loop: s.loop ?? false };
+    frame += s.count;
+    return cue;
+  });
+  cues.splice(1, 0, {
+    frame: 40,
+    audio: ["audio/dialogue/giving life its fullest brilliance.wav"],
+    text:  "Giving life its<br>fullest brilliance.",
+    loop:  false,
+  });
+  return Object.freeze(cues);
+})();
+
+/* ──────────────────────────────────────────────────────
+   NARRATION SCENE PLAYER
+   Drives the multi-scene PNG animation.
+   For boss scenes (bossId set) the canvas is hidden and
+   a layered image overlay is shown instead.
+   Converts vertical wheel → scene advance / rewind.
 ────────────────────────────────────────────────────── */
 
 class ErdtreeHScroll {
-  /** Slide transition duration in ms (must match CSS). */
-  static #SLIDE_MS = 550;
+  static #FPS = 12;
 
-  /** @type {HTMLElement} */      #section;
-  /** @type {HTMLElement} */      #stage;
-  /** @type {HTMLElement} */      #subtitle;
-  /** @type {AudioController} */  #audio;
-  /** @type {HTMLElement[]} */    #slides = [];
+  /** @type {HTMLElement} */       #section;
+  /** @type {HTMLElement} */       #stage;
+  /** @type {HTMLElement} */       #subtitle;
+  /** @type {HTMLElement} */       #canvasEl;
+  /** @type {ErdtreePlayer} */     #player;
+  /** @type {AudioController} */   #audio;
+  /** @type {number[]} */          #sceneStart = [];
 
-  #idx     = -1;   // -1 = not yet entered
-  #active  = false;
-  #sliding = false;
-  #done    = false;
+  #chapter     = -1;
+  #rafId       = null;
+  #lastTs      = null;
+  #frame       = 0;
+  #targetFrame = -1;
+  #sceneIdx    = -1;
+  #active      = false;
+  #done        = false;
+  #sliding     = false;
+  #slideTimer  = null;
 
   /** @param {AudioController} audio */
   constructor(audio) {
     this.#section  = /** @type {HTMLElement} */ (document.getElementById("erdtree-scroll"));
     this.#stage    = /** @type {HTMLElement} */ (document.getElementById("erdtree-stage"));
     this.#subtitle = /** @type {HTMLElement} */ (document.getElementById("erdtree-subtitle"));
+    this.#canvasEl = /** @type {HTMLElement} */ (document.getElementById("erdtree-canvas"));
+    this.#player   = new ErdtreePlayer(/** @type {HTMLCanvasElement} */ (this.#canvasEl));
     this.#audio    = audio;
 
-    // Collect slides in BOSSES order — each boss has a matching #boss-<id> element.
-    this.#slides = BOSSES.map(b =>
-      /** @type {HTMLElement} */ (document.getElementById(`boss-${b.id}`)),
-    ).filter(Boolean);
+    let f = 0;
+    for (const scene of SCENES) { this.#sceneStart.push(f); f += scene.count; }
 
+    this.#player.init();
     this.#initVisibilityObserver();
     this.#initWheelHandler();
   }
@@ -321,15 +523,17 @@ class ErdtreeHScroll {
 
       if (ratio > 0.5) {
         this.#active = true;
-        if (this.#idx < 0) {
+        if (this.#sceneIdx < 0) {
           document.body.style.overflow = "hidden";
-          this.#goTo(0);
+          this.#goToScene(0);
         } else if (!this.#done) {
           document.body.style.overflow = "hidden";
         }
       } else if (ratio < 0.1) {
         this.#active = false;
         this.#subtitle.classList.remove("visible");
+        this.#chapter = -1;
+        this.#stopPlay();
         this.#audio.stopDialogue();
       }
     }, { threshold: [0, 0.1, 0.5, 0.6, 1.0] });
@@ -343,89 +547,139 @@ class ErdtreeHScroll {
 
       const goingDown = e.deltaY > 0;
 
-      if (this.#sliding) { e.preventDefault(); return; }
+      if (this.#rafId || this.#sliding) { e.preventDefault(); return; }
       if (goingDown && this.#done) return;
-      if (!goingDown && this.#idx <= 0) {
+      if (!goingDown && this.#sceneIdx <= 0) {
         document.body.style.overflow = "";
         return;
       }
 
       e.preventDefault();
-      this.#goTo(this.#idx + (goingDown ? 1 : -1));
+      this.#goToScene(this.#sceneIdx + (goingDown ? 1 : -1));
     }, { passive: false });
   }
 
-  /** @param {number} next */
-  #goTo(next) {
-    next = Math.max(0, Math.min(BOSSES.length - 1, next));
-    if (next === this.#idx && this.#idx >= 0) return;
-
-    const prev      = this.#idx;
-    const isFirst   = prev < 0;
-    const direction = next > prev ? 1 : -1;
-    this.#idx     = next;
-    this.#done    = false;
-    this.#sliding = !isFirst;
-
-    const nextSlide = this.#slides[next];
-    const prevSlide = prev >= 0 ? this.#slides[prev] : null;
-
-    if (isFirst) {
-      // First entry — just show the slide, no transition.
-      nextSlide?.classList.add("boss-slide--active");
-      this.#showCue(next);
-      return;
+  /**
+   * Show the boss overlay for a scene that has a bossId, or hide it for
+   * canvas scenes. All other boss overlays are always hidden.
+   * @param {number} idx
+   */
+  #syncBossOverlay(idx) {
+    const bossId = SCENES[idx]?.bossId ?? null;
+    // Hide all boss overlays first.
+    this.#stage.querySelectorAll(".boss-slide").forEach(el => {
+      el.classList.remove("boss-slide--active");
+    });
+    // Show canvas for non-boss scenes; hide it for boss scenes.
+    this.#canvasEl.classList.toggle("erdtree-canvas--hidden", bossId !== null);
+    // Reveal the matching boss overlay.
+    if (bossId) {
+      document.getElementById(`boss-${bossId}`)?.classList.add("boss-slide--active");
     }
-
-    // Slide outgoing left/right, bring incoming from the opposite side.
-    const outTo = direction === 1 ? "-100%"  : "100%";
-    const inFrom = direction === 1 ? "100%"  : "-100%";
-
-    if (prevSlide) {
-      prevSlide.style.transition = `transform ${ErdtreeHScroll.#SLIDE_MS}ms ease-in-out`;
-      prevSlide.style.transform  = `translateX(${outTo})`;
-    }
-
-    if (nextSlide) {
-      nextSlide.style.transition = "none";
-      nextSlide.style.transform  = `translateX(${inFrom})`;
-      nextSlide.classList.add("boss-slide--active");
-      void nextSlide.offsetWidth; // force reflow
-      nextSlide.style.transition = `transform ${ErdtreeHScroll.#SLIDE_MS}ms ease-in-out`;
-      nextSlide.style.transform  = "translateX(0)";
-    }
-
-    this.#showCue(next);
-
-    setTimeout(() => {
-      prevSlide?.classList.remove("boss-slide--active");
-      if (prevSlide) { prevSlide.style.transition = ""; prevSlide.style.transform = ""; }
-      if (nextSlide) { nextSlide.style.transition = ""; }
-      this.#sliding = false;
-
-      if (this.#idx >= BOSSES.length - 1) {
-        this.#done = true;
-        document.body.style.overflow = "";
-      }
-    }, ErdtreeHScroll.#SLIDE_MS);
   }
 
   /** @param {number} idx */
-  #showCue(idx) {
-    const boss = BOSSES[idx];
-    if (!boss) return;
+  #goToScene(idx) {
+    idx = Math.max(0, Math.min(SCENES.length - 1, idx));
 
-    this.#subtitle.textContent = boss.subtitle;
+    const isFirst   = this.#sceneIdx < 0;
+    const direction = idx >= this.#sceneIdx ? 1 : -1;
+
+    this.#done        = false;
+    this.#sceneIdx    = idx;
+    this.#frame       = this.#sceneStart[idx];
+    this.#targetFrame = idx < SCENES.length - 1
+      ? this.#sceneStart[idx + 1] - 1
+      : TOTAL_FRAMES - 1;
+
+    this.#stopPlay();
+
+    if (isFirst) {
+      this.#syncBossOverlay(idx);
+      this.#checkChapterCues();
+      this.#lastTs = null;
+      this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
+      return;
+    }
+
+    this.#sliding = true;
+    clearTimeout(this.#slideTimer);
+    const el   = this.#canvasEl;
+    const outX = direction === 1 ? "-100%" : "100%";
+    const inX  = direction === 1 ?  "100%" : "-100%";
+
+    el.style.transition = "transform 0.3s ease-in";
+    el.style.transform  = `translateX(${outX})`;
+
+    this.#slideTimer = setTimeout(() => {
+      this.#syncBossOverlay(idx);
+      this.#player.seek(this.#frame);
+      this.#checkChapterCues();
+
+      el.style.transition = "none";
+      el.style.transform  = `translateX(${inX})`;
+      void el.offsetWidth;
+      el.style.transition = "transform 0.35s ease-out";
+      el.style.transform  = "translateX(0)";
+
+      this.#lastTs = null;
+      this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
+
+      this.#slideTimer = setTimeout(() => {
+        el.style.transition = "";
+        this.#sliding = false;
+      }, 350);
+    }, 300);
+  }
+
+  #stopPlay() {
+    if (this.#rafId) cancelAnimationFrame(this.#rafId);
+    this.#rafId = null;
+  }
+
+  /** @param {DOMHighResTimeStamp} ts */
+  #tick(ts) {
+    if (!this.#lastTs) this.#lastTs = ts;
+    const elapsed       = ts - this.#lastTs;
+    const frameDuration = 1000 / ErdtreeHScroll.#FPS;
+
+    if (elapsed >= frameDuration) {
+      const frames  = Math.floor(elapsed / frameDuration);
+      this.#lastTs  = ts - (elapsed % frameDuration);
+      this.#frame   = Math.min(this.#frame + frames, this.#targetFrame);
+      this.#player.seek(this.#frame);
+      this.#checkChapterCues();
+
+      if (this.#frame >= this.#targetFrame) {
+        if (this.#sceneIdx >= SCENES.length - 1) {
+          this.#done = true;
+          document.body.style.overflow = "";
+        }
+        this.#rafId = null;
+        return;
+      }
+    }
+
+    this.#rafId = requestAnimationFrame(ts => this.#tick(ts));
+  }
+
+  #checkChapterCues() {
+    let chapterIdx = -1;
+    for (let i = CHAPTER_CUES.length - 1; i >= 0; i--) {
+      if (this.#frame >= CHAPTER_CUES[i].frame) { chapterIdx = i; break; }
+    }
+    if (chapterIdx < 0 || chapterIdx === this.#chapter) return;
+
+    this.#chapter = chapterIdx;
+    this.#subtitle.innerHTML = CHAPTER_CUES[chapterIdx].text;
     this.#subtitle.classList.remove("visible");
     requestAnimationFrame(() =>
       requestAnimationFrame(() => this.#subtitle.classList.add("visible")),
     );
-
-    if (boss.audio.length) {
-      this.#audio.playDialogueSequence(boss.audio, false);
-    } else {
-      this.#audio.stopDialogue();
-    }
+    this.#audio.playDialogueSequence(
+      CHAPTER_CUES[chapterIdx].audio,
+      CHAPTER_CUES[chapterIdx].loop,
+    );
   }
 }
 

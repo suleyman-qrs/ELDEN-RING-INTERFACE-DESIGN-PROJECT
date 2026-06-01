@@ -414,7 +414,6 @@ body {
 
 .rt-layer--base {
   opacity: 1;
-  will-change: transform;
 }
 
 .rt-layer--npc {

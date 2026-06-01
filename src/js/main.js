@@ -1158,41 +1158,34 @@ class RoundtableNPC {
 ────────────────────────────────────────────────────── */
 
 /**
- * @typedef {{ el: HTMLElement, rx: number, ry: number, scale: number }} ParallaxLayer
+ * @typedef {{ el: HTMLElement, rx: number, ry: number }} ParallaxLayer
  */
 
 class RoundtableParallax {
   /** @type {ParallaxLayer[]} */ #layers = [];
-  #mouseX  = 0;
-  #mouseY  = 0;
-  #lerpX   = 0;
-  #lerpY   = 0;
-  #rafId   = null;
+  #mouseX = 0;
+  #mouseY = 0;
+  #lerpX  = 0;
+  #lerpY  = 0;
+  #rafId  = null;
 
   constructor() {
     const section = document.getElementById("roundtable");
     if (!section) return;
 
-    // rx/ry = fraction of mouse offset applied as translate.
-    // scale  = base scale baked into the JS transform so CSS scale
-    //          is never overridden (background uses 1.05 to give
-    //          parallax headroom so edges are never revealed).
-    /** @type {Array<[string, number, number, number]>} */
+    // Only translate the NPC character layers (transparent PNGs).
+    // The background image is intentionally excluded — writing style.transform
+    // to a cover-fitted img conflicts with its inset/size layout and breaks it.
+    /** @type {Array<[string, number, number]>} */
     const defs = [
-      ["rt-base",       0.0003, 0.0002, 1.05],
-      ["rt-img-gideon", 0.0006, 0.0004, 1],
-      ["rt-img-d",      0.0008, 0.0006, 1],
-      ["rt-img-rogier", 0.001,  0.0008, 1],
-      ["rt-img-enia",   0.0013, 0.001,  1],
+      ["rt-img-gideon", 0.0008, 0.0006],
+      ["rt-img-d",      0.0012, 0.0009],
+      ["rt-img-rogier", 0.0016, 0.0012],
+      ["rt-img-enia",   0.0020, 0.0015],
     ];
-    for (const [id, rx, ry, scale] of defs) {
+    for (const [id, rx, ry] of defs) {
       const el = document.getElementById(id);
-      if (el) this.#layers.push({ el, rx, ry, scale });
-    }
-
-    // Initialise background scale immediately so it's correct before any mouse input.
-    for (const { el, scale } of this.#layers) {
-      if (scale !== 1) el.style.transform = `scale(${scale})`;
+      if (el) this.#layers.push({ el, rx, ry });
     }
 
     section.addEventListener("mousemove", e => {
@@ -1214,12 +1207,10 @@ class RoundtableParallax {
       this.#lerpX += (this.#mouseX - this.#lerpX) * 0.07;
       this.#lerpY += (this.#mouseY - this.#lerpY) * 0.07;
 
-      for (const { el, rx, ry, scale } of this.#layers) {
-        const scaleStr = scale !== 1 ? `scale(${scale}) ` : "";
-        el.style.transform = `${scaleStr}translate(${this.#lerpX * rx}px, ${this.#lerpY * ry}px)`;
+      for (const { el, rx, ry } of this.#layers) {
+        el.style.transform = `translate(${this.#lerpX * rx}px, ${this.#lerpY * ry}px)`;
       }
 
-      // Keep ticking until the lerp has fully settled back to rest.
       const settled = Math.abs(this.#mouseX - this.#lerpX) < 0.15
                    && Math.abs(this.#mouseY - this.#lerpY) < 0.15;
       this.#rafId = settled ? null : requestAnimationFrame(tick);

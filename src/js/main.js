@@ -309,6 +309,7 @@ const SCENES = Object.freeze([
     count: 64,
     audio: ["audio/dialogue/And Morgott, Prince of the Omen.wav"],
     text: "And Morgott,<br>Prince of the Omen.",
+    bossId: "margitt",
   },
   {
     dir: "Scenes/09_Each_Inheriting",

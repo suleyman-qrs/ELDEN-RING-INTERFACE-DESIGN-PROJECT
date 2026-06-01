@@ -86,7 +86,7 @@ class AudioController {
     if (this.#unlocked) {
       this.#tryPlay(this.#bgm);
     } else {
-      this.#pendingBgm = true;
+      this.#pendingBgm = true; // will play on first user gesture via unlock handler
     }
   }
 
@@ -662,19 +662,21 @@ class ErdtreeHScroll {
   #initWheelHandler() {
     window.addEventListener("wheel", e => {
       if (!this.#active) return;
-      if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
 
-      const goingDown = e.deltaY > 0;
+      // Respond only to primarily-horizontal scroll (trackpad left/right swipe).
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+
+      const goingRight = e.deltaX > 0;
 
       if (this.#rafId || this.#sliding) { e.preventDefault(); return; }
-      if (goingDown && this.#done) return;
-      if (!goingDown && this.#sceneIdx <= 0) {
+      if (goingRight && this.#done) return;
+      if (!goingRight && this.#sceneIdx <= 0) {
         document.body.style.overflow = "";
         return;
       }
 
       e.preventDefault();
-      this.#goToScene(this.#sceneIdx + (goingDown ? 1 : -1));
+      this.#goToScene(this.#sceneIdx + (goingRight ? 1 : -1));
     }, { passive: false });
   }
 
@@ -767,22 +769,33 @@ class ErdtreeHScroll {
     this.#sliding = true;
     clearTimeout(this.#slideTimer);
     const el   = this.#canvasEl;
-    const outX = direction === 1 ? "-100%" : "100%";
-    const inX  = direction === 1 ?  "100%" : "-100%";
 
-    // Only animate the canvas element when it's actually visible (PNG scenes).
-    if (!isOverlay) {
-      el.style.transition = "transform 0.3s ease-in";
-      el.style.transform  = `translateX(${outX})`;
-    }
-
-    this.#slideTimer = setTimeout(() => {
+    if (isOverlay) {
+      // Overlay scene (video or boss image): switch immediately so there is
+      // no blank gap. CSS opacity transition handles the crossfade visually.
       this.#syncOverlay(idx);
       this.#checkChapterCues();
+      if (idx >= SCENES.length - 1) {
+        this.#done = true;
+        document.body.style.overflow = "";
+      }
+      // Hold the slide-lock long enough for the CSS fade to settle.
+      this.#slideTimer = setTimeout(() => {
+        this.#sliding = false;
+      }, 600);
+    } else {
+      // Pure PNG-sequence scene: slide the canvas out, seek, slide back in.
+      const outX = direction === 1 ? "-100%" : "100%";
+      const inX  = direction === 1 ?  "100%" : "-100%";
 
-      if (!isOverlay) {
-        // PNG scene: seek canvas and slide it in.
+      el.style.transition = "transform 0.3s ease-in";
+      el.style.transform  = `translateX(${outX})`;
+
+      this.#slideTimer = setTimeout(() => {
+        this.#syncOverlay(idx);
         this.#player.seek(this.#frame);
+        this.#checkChapterCues();
+
         el.style.transition = "none";
         el.style.transform  = `translateX(${inX})`;
         void el.offsetWidth;
@@ -790,21 +803,13 @@ class ErdtreeHScroll {
         el.style.transform  = "translateX(0)";
         this.#lastTs = null;
         this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
-      } else {
-        // Video / boss overlay: reset any lingering canvas transform.
-        el.style.transition = "";
-        el.style.transform  = "";
-        if (idx >= SCENES.length - 1) {
-          this.#done = true;
-          document.body.style.overflow = "";
-        }
-      }
 
-      this.#slideTimer = setTimeout(() => {
-        el.style.transition = "";
-        this.#sliding = false;
-      }, 350);
-    }, 300);
+        this.#slideTimer = setTimeout(() => {
+          el.style.transition = "";
+          this.#sliding = false;
+        }, 350);
+      }, 300);
+    }
   }
 
   #stopPlay() {

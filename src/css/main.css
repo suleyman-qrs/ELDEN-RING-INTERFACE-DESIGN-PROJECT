@@ -545,10 +545,11 @@ body {
   border-radius: 2px;
 }
 
-/* ── NPC DIALOGUE — matches the in-game info/menu panel ──
-   Centered, warm dark-gray bg, plain 1px border, no gold.
-   Controller hints sit below the box.
-────────────────────────────────────────────────────────── */
+/* ── NPC DIALOGUE — Site of Grace left-panel style ───────
+   Full-height left panel, gradient bg, no border.
+   Matches screenshot: icon + name header, plain text options,
+   subtle row highlight on hover, hints pinned to bottom.
+──────────────────────────────────────────────────────────── */
 
 .npc-dialog {
   transition: opacity 0.3s ease;
@@ -564,173 +565,210 @@ body {
 }
 
 .npc-dialog[open] {
-  /* Centered */
+  /* Top-left anchored, full viewport height — matches the game */
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
+  transform: none;
   margin: 0;
 
-  /* Size — matches the game's ~60% width info panel */
-  width: min(600px, 72vw);
-  max-height: 72vh;
+  width: clamp(260px, 23vw, 340px);
+  height: 100dvh;
+  max-height: 100dvh;
   overflow: hidden;
 
   display: flex;
   flex-direction: column;
   outline: none;
-
-  /* Warm charcoal — game uses a dark brownish-gray, not pure black */
-  background: rgba(22, 19, 14, 0.96);
-
-  /* Single thin neutral border — no gold, no layering */
-  border: 1px solid rgba(190, 180, 160, 0.28);
-
-  /* Subtle drop shadow only */
-  box-shadow: 0 8px 60px rgba(0, 0, 0, 0.95);
-
+  border: none;
+  box-shadow: none;
   padding: 0;
+
+  /*
+   * Left-to-right gradient exactly as in screenshot 2:
+   * solid dark on far left, fades to fully transparent on right edge
+   */
+  background: linear-gradient(
+    to right,
+    rgba(8, 6, 3, 0.92)  0%,
+    rgba(8, 6, 3, 0.88)  55%,
+    rgba(8, 6, 3, 0.55)  78%,
+    rgba(8, 6, 3, 0)     100%
+  );
 }
 
-/* Dark semi-transparent backdrop — scene dims behind the dialog */
+/* Transparent backdrop — the game world stays fully visible */
 .npc-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.72);
+  background: transparent;
 }
 
-/* No pseudo-element frame */
 .npc-dialog[open]::before {
   display: none;
 }
 
-/* ── Title row ───────────────────────────────────────── */
-
-.npc-dialog__title {
-  font-family: var(--font-display);
-  font-size: clamp(11px, 1vw, 15px);
-  font-weight: 400;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  text-align: center;
-  color: var(--cream);
-  padding: clamp(18px, 2.8vh, 28px) 32px clamp(14px, 2vh, 22px);
-  /* Thin separator identical to the screenshot's title underline */
-  border-bottom: 1px solid rgba(190, 180, 160, 0.2);
+/* Keyboard hints pinned to the bottom-left of the panel */
+.npc-dialog[open]::after {
+  content: "⏎ :OK    Esc :Close";
+  position: absolute;
+  bottom: clamp(14px, 2.5vh, 28px);
+  left: 20px;
+  font-family: var(--font-sans);
+  font-size: clamp(10px, 0.8vw, 12px);
+  letter-spacing: 0.08em;
+  color: rgba(240, 226, 192, 0.32);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
-/* No decorative lines needed */
-.npc-dialog__title::before,
+/* ── Header row: icon + NPC name ─────────────────────── */
+
+.npc-dialog__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  /* Slightly darker header strip — matches the game's header bar */
+  background: rgba(0, 0, 0, 0.28);
+  padding: clamp(14px, 2.2vh, 22px) 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+
+  font-family: var(--font-serif);
+  font-size: clamp(13px, 1.2vw, 17px);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--cream);
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.9);
+}
+
+/* Small square icon — matches the item-icon style in the game */
+.npc-dialog__title::before {
+  content: "";
+  flex-shrink: 0;
+  display: block;
+  width: 32px;
+  height: 32px;
+  background: rgba(45, 36, 18, 0.85);
+  border: 1px solid rgba(160, 130, 55, 0.45);
+}
+
 .npc-dialog__title::after {
   display: none;
 }
 
-/* ── Options list ────────────────────────────────────── */
+/* ── Options list ─────────────────────────────────────── */
 
 .npc-dialog__topics {
   display: flex;
   flex-direction: column;
+  padding: clamp(22px, 3.5vh, 36px) 0 clamp(48px, 8vh, 72px);
   overflow-y: auto;
-  padding: clamp(14px, 2.5vh, 24px) 0 clamp(32px, 5vh, 52px);
+  flex: 1;
 }
 
 .npc-topic-btn {
   width: 100%;
-  padding: 8px 32px;
+  padding: 7px 20px;
   background: transparent;
   border: none;
   cursor: pointer;
+
   font-family: var(--font-serif);
-  font-size: clamp(13px, 1.2vw, 17px);
+  font-size: clamp(13px, 1.15vw, 16px);
   font-weight: 400;
   color: var(--cream);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   text-align: left;
-  text-shadow: none;
-  transition: background 0.1s, color 0.1s;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.85);
+
+  /* Row highlight matches "Pass time" selection in screenshot */
+  transition: background 0.08s, color 0.08s;
 }
 
-/* No arrow — matches the screenshot style */
-.npc-topic-btn::before {
+/* No arrows, no pseudo-content */
+.npc-topic-btn::before,
+.npc-topic-btn::after {
   display: none;
 }
 
 .npc-topic-btn:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(200, 180, 130, 0.13);
   color: var(--white);
 }
 
+/* "Seek the Elden Ring" — same style, slight top gap */
 .npc-topic-btn--seek {
-  color: var(--cream);
-  margin-top: 6px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(190, 180, 160, 0.14);
+  margin-top: 10px;
 }
 
+/* "Leave" — same weight as other options, just a touch dimmer */
 .npc-topic-btn--leave {
-  color: rgba(240, 226, 192, 0.45);
-  margin-top: 4px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(190, 180, 160, 0.1);
+  color: rgba(240, 226, 192, 0.52);
+  margin-top: 8px;
 }
 
 .npc-topic-btn--leave:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(200, 180, 130, 0.1);
   color: var(--cream);
-}
-
-/* ── Keyboard hints — below the box ─────────────────── */
-
-.npc-dialog__topics::after {
-  content: "⏎ :OK    Esc :Close";
-  position: absolute;
-  /* Place just below the dialog (dialog is ~50% centred) */
-  top: calc(50% + min(300px, 36vh) + 14px);
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-sans);
-  font-size: clamp(10px, 0.85vw, 13px);
-  letter-spacing: 0.1em;
-  color: rgba(240, 226, 192, 0.4);
-  white-space: nowrap;
-  pointer-events: none;
 }
 
 /* ======================================================
    PHASE 3 — CHOICE MAP
    ====================================================== */
 
+/* Choice-map reuses the same left-panel style as NPC dialogs */
 dialog.choice-map {
-  outline: none;
-  background: rgba(22, 19, 14, 0.96);
-  width: min(600px, 72vw);
-  padding: 0;
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
+  transform: none;
   margin: 0;
-  border: 1px solid rgba(190, 180, 160, 0.28);
-  box-shadow: 0 8px 60px rgba(0, 0, 0, 0.95);
+  width: clamp(260px, 23vw, 340px);
+  height: 100dvh;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  padding: 0;
+  background: linear-gradient(
+    to right,
+    rgba(8, 6, 3, 0.92)  0%,
+    rgba(8, 6, 3, 0.88)  55%,
+    rgba(8, 6, 3, 0.55)  78%,
+    rgba(8, 6, 3, 0)     100%
+  );
 }
 
 dialog[open].choice-map {
   display: flex;
   flex-direction: column;
-  gap: 0;
 }
 
 dialog.choice-map::backdrop {
-  background: rgba(0, 0, 0, 0.72);
+  background: transparent;
 }
 
 .choice-prompt {
-  font-family: var(--font-display);
-  font-size: clamp(11px, 1vw, 15px);
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  padding: clamp(14px, 2.2vh, 22px) 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-family: var(--font-serif);
+  font-size: clamp(13px, 1.2vw, 17px);
   color: var(--cream);
-  padding: clamp(18px, 2.8vh, 28px) 32px clamp(14px, 2vh, 22px);
-  border-bottom: 1px solid rgba(190, 180, 160, 0.2);
+  letter-spacing: 0.04em;
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.9);
+}
+
+/* NPC icon placeholder in choice header */
+.choice-prompt::before {
+  content: "";
+  flex-shrink: 0;
+  display: block;
+  width: 32px;
+  height: 32px;
+  background: rgba(45, 36, 18, 0.85);
+  border: 1px solid rgba(160, 130, 55, 0.45);
 }
 
 .choice-prompt::after {
@@ -740,22 +778,23 @@ dialog.choice-map::backdrop {
 .choice-form {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  padding: clamp(14px, 2.5vh, 24px) 0 clamp(24px, 4vh, 40px);
+  padding: clamp(22px, 3.5vh, 36px) 0 clamp(48px, 8vh, 72px);
+  flex: 1;
 }
 
 .choice-btn {
   width: 100%;
-  padding: 8px 32px;
+  padding: 7px 20px;
   background: transparent;
   border: none;
   cursor: pointer;
   font-family: var(--font-serif);
-  font-size: clamp(13px, 1.2vw, 17px);
+  font-size: clamp(13px, 1.15vw, 16px);
   color: var(--cream);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   text-align: left;
-  transition: background 0.1s, color 0.1s;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.85);
+  transition: background 0.08s, color 0.08s;
 }
 
 .choice-btn::before {
@@ -763,20 +802,18 @@ dialog.choice-map::backdrop {
 }
 
 .choice-btn:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(200, 180, 130, 0.13);
   color: var(--white);
 }
 
 .choice-btn--no {
-  color: rgba(240, 226, 192, 0.45);
-  margin-top: 4px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(190, 180, 160, 0.1);
+  color: rgba(240, 226, 192, 0.52);
+  margin-top: 8px;
 }
 
 .choice-btn--no:hover {
+  background: rgba(200, 180, 130, 0.1);
   color: var(--cream);
-  background: rgba(255, 255, 255, 0.05);
 }
 
 /* ======================================================

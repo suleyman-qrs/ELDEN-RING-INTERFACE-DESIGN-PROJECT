@@ -997,11 +997,8 @@ class RoundtableNPC {
         const el   = /** @type {HTMLElement} */ (btn);
         const srcs = (el.dataset.audio ?? "").split(",").map(s => s.trim()).filter(Boolean);
         const line = el.dataset.subtitle ?? btn.textContent?.trim() ?? "";
-        // Reveal the follow-up topic as soon as this one is selected —
-        // don't gate it on audio completion, which any stray click can interrupt.
         const unlockId = el.dataset.unlocks ?? null;
-        if (unlockId) document.getElementById(unlockId)?.removeAttribute("hidden");
-        this.#playTopic(dialog, srcs, line);
+        this.#playTopic(dialog, srcs, line, unlockId);
       });
     });
 
@@ -1019,11 +1016,14 @@ class RoundtableNPC {
   /**
    * Fades out the dialog, shows subtitle, plays audio sequence, then restores.
    * Clicking anywhere while audio plays skips it and restores the dialog.
+   * If unlockId is set, the element with that ID is revealed when the dialog
+   * fades back in — whether the audio completed or was skipped.
    * @param {HTMLDialogElement} dialog
    * @param {string[]}          srcs
    * @param {string}            line
+   * @param {string | null}     [unlockId]
    */
-  #playTopic(dialog, srcs, line) {
+  #playTopic(dialog, srcs, line, unlockId = null) {
     dialog.classList.add("npc-dialog--faded");
 
     let done = false;
@@ -1031,6 +1031,7 @@ class RoundtableNPC {
       if (done) return;
       done = true;
       subtitle.hide();
+      if (unlockId) document.getElementById(unlockId)?.removeAttribute("hidden");
       setTimeout(() => dialog.classList.remove("npc-dialog--faded"), DIALOGUE_TIMING.SUBTITLE_RESTORE);
     };
     const onSkip = () => {

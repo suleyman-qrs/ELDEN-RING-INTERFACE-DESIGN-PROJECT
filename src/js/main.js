@@ -26,6 +26,7 @@ class AudioController {
   /** @type {HTMLAudioElement[]} */      #sfxList = [];
   #unlocked = false;
   #pendingBgm = false;
+  #dialogueGen = 0;
   /** @type {Array<() => void>} */       #unlockCallbacks = [];
 
   constructor() {
@@ -181,7 +182,8 @@ class AudioController {
   }
 
   /**
-   * Plays one or more dialogue files in sequence, calling onEnd after the last one.
+   * Plays one or more dialogue files in sequence, calling onEnd after the last.
+   * Uses a generation counter so stopDialogue() cancels any pending onEnd.
    * @param {string[]}   srcs
    * @param {() => void} [onEnd]
    */
@@ -190,23 +192,32 @@ class AudioController {
     this.#dialogue = null;
     if (!this.#unlocked || !srcs.length) { onEnd?.(); return; }
 
-    const [first, ...rest] = srcs;
-    this.#dialogue = new Audio(first);
-    this.#dialogue.volume = 1;
-    this.#dialogue.play().catch(() => {});
+    // Capture current generation; stopDialogue increments it, invalidating callbacks.
+    const gen = ++this.#dialogueGen;
+    const guardedEnd = onEnd ? () => { if (this.#dialogueGen === gen) onEnd(); } : undefined;
 
-    const next = rest.length
-      ? () => this.playDialogueLine(rest, onEnd)
-      : onEnd ?? (() => {});
+    const playFrom = (/** @type {string[]} */ remaining) => {
+      if (this.#dialogueGen !== gen || !remaining.length) return;
+      const [first, ...rest] = remaining;
+      const el = new Audio(first);
+      this.#dialogue = el;
+      el.volume = 1;
+      el.play().catch(() => {});
+      const next = rest.length ? () => { if (this.#dialogueGen === gen) playFrom(rest); } : guardedEnd;
+      if (next) {
+        el.addEventListener("ended", next, { once: true });
+        el.addEventListener("error",  next, { once: true });
+      }
+    };
 
-    this.#dialogue.addEventListener("ended", next, { once: true });
-    this.#dialogue.addEventListener("error",  next, { once: true });
+    playFrom(srcs);
   }
 
-  /** Stops the current dialogue track. */
+  /** Stops the current dialogue track and cancels any pending end callbacks. */
   stopDialogue() {
     this.#dialogue?.pause();
     this.#dialogue = null;
+    ++this.#dialogueGen;
   }
 
   /**
@@ -713,7 +724,11 @@ class ChoiceMap {
       eniaActive = true;
       eniaImg?.classList.add("rt-npc--glow");
       sceneZoom.zoomTo(78, 62);
-      this.#transitionToNarration();
+      // Brief zoom-in pause before cutting to black
+      setTimeout(() => {
+        sceneZoom.zoomOut();
+        this.#transitionToNarration();
+      }, 600);
     });
   }
 
@@ -886,11 +901,11 @@ class RoundtableNPC {
     const restore = () => {
       if (done) return;
       done = true;
-      document.removeEventListener("click", onSkip, true);
       subtitle.hide();
       setTimeout(() => dialog.classList.remove("npc-dialog--faded"), 300);
     };
     const onSkip = () => {
+      if (done) return;
       this.#audio.stopDialogue();
       restore();
     };
@@ -898,7 +913,8 @@ class RoundtableNPC {
     setTimeout(() => {
       subtitle.show(this.#name, line);
       this.#audio.playDialogueLine(srcs, restore);
-      // Delay so the click that opened this topic isn't caught as a skip
+      // Delay so the click that opened this topic isn't caught as a skip.
+      // Use capture so it intercepts clicks before any element handlers.
       setTimeout(() => document.addEventListener("click", onSkip, { capture: true, once: true }), 200);
     }, 370);
   }

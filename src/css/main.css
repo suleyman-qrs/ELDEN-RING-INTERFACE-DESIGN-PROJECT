@@ -524,6 +524,10 @@ body {
 }
 
 .npc-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
   outline: none;
   background: rgba(0, 0, 0, 0.96);
   width: min(520px, 90vw);
@@ -546,13 +550,6 @@ body {
 
 .npc-dialog::backdrop {
   background: transparent;
-}
-
-.npc-dialog[open] {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 32px;
 }
 
 .npc-dialog__title {

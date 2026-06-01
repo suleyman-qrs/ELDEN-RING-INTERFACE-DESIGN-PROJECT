@@ -545,10 +545,11 @@ body {
   border-radius: 2px;
 }
 
-/* ── NPC DIALOGUE — matches the in-game info/menu panel ──
-   Centered, warm dark-gray bg, plain 1px border, no gold.
-   Controller hints sit below the box.
-────────────────────────────────────────────────────────── */
+/* ── NPC DIALOGUE — Elden Ring centered info-panel style ──
+   Structure matches the in-game "Map Menu" / "INFORMATION"
+   panel: thin rule above title, thin rule below title,
+   scrollable options, footer hint row at bottom.
+──────────────────────────────────────────────────────────── */
 
 .npc-dialog {
   transition: opacity 0.3s ease;
@@ -564,112 +565,126 @@ body {
 }
 
 .npc-dialog[open] {
-  /* Centered */
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   margin: 0;
 
-  /* Size — matches the game's ~60% width info panel */
-  width: min(600px, 72vw);
-  max-height: 72vh;
-  overflow: hidden;
+  width: min(580px, 72vw);
+  max-height: 70vh;
+  overflow: hidden;         /* clips scroll; flex children handle inner scroll */
 
   display: flex;
   flex-direction: column;
   outline: none;
-
-  /* Warm charcoal — game uses a dark brownish-gray, not pure black */
-  background: rgba(22, 19, 14, 0.96);
-
-  /* Single thin neutral border — no gold, no layering */
-  border: 1px solid rgba(190, 180, 160, 0.28);
-
-  /* Subtle drop shadow only */
-  box-shadow: 0 8px 60px rgba(0, 0, 0, 0.95);
-
   padding: 0;
+
+  /* Warm charcoal — same dark brownish tone as in-game panels */
+  background: rgba(18, 15, 10, 0.97);
+
+  /* Very subtle 1px neutral outline — matches the game */
+  border: 1px solid rgba(200, 190, 160, 0.22);
+  box-shadow: 0 12px 64px rgba(0, 0, 0, 0.96);
 }
 
-/* Dark semi-transparent backdrop — scene dims behind the dialog */
+/* Scene darkens behind dialog */
 .npc-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(0, 0, 0, 0.68);
 }
 
-/* No pseudo-element frame */
+/* Thin rule at very top of panel (above the title) */
 .npc-dialog[open]::before {
-  display: none;
+  content: "";
+  display: block;
+  flex-shrink: 0;
+  height: 1px;
+  background: rgba(200, 190, 160, 0.18);
 }
 
-/* ── Title row ───────────────────────────────────────── */
+/* Footer row with keyboard hints — always pinned to bottom */
+.npc-dialog[open]::after {
+  content: "⏎ :OK    Esc :Close";
+  display: block;
+  flex-shrink: 0;
+  text-align: center;
+  padding: clamp(9px, 1.4vh, 14px) 0;
+  border-top: 1px solid rgba(200, 190, 160, 0.18);
+  font-family: var(--font-sans);
+  font-size: clamp(10px, 0.82vw, 12px);
+  letter-spacing: 0.12em;
+  color: rgba(240, 226, 192, 0.35);
+  pointer-events: none;
+}
+
+/* ── Title ────────────────────────────────────────────── */
 
 .npc-dialog__title {
-  font-family: var(--font-display);
-  font-size: clamp(11px, 1vw, 15px);
+  flex-shrink: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(12px, 1.1vw, 16px);
   font-weight: 400;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
+  letter-spacing: 0.08em;
   text-align: center;
   color: var(--cream);
-  padding: clamp(18px, 2.8vh, 28px) 32px clamp(14px, 2vh, 22px);
-  /* Thin separator identical to the screenshot's title underline */
-  border-bottom: 1px solid rgba(190, 180, 160, 0.2);
+  padding: clamp(14px, 2.2vh, 22px) 32px;
+  /* Thin rule below title — matches the game's title separator */
+  border-bottom: 1px solid rgba(200, 190, 160, 0.18);
 }
 
-/* No decorative lines needed */
 .npc-dialog__title::before,
 .npc-dialog__title::after {
   display: none;
 }
 
-/* ── Options list ────────────────────────────────────── */
+/* ── Options list — scrollable middle section ─────────── */
 
 .npc-dialog__topics {
+  flex: 1;
+  min-height: 0;            /* allows flex child to shrink + scroll */
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  padding: clamp(14px, 2.5vh, 24px) 0 clamp(32px, 5vh, 52px);
+  padding: clamp(12px, 2vh, 20px) 0;
 }
 
 .npc-topic-btn {
   width: 100%;
-  padding: 8px 32px;
+  padding: 8px 28px;
   background: transparent;
   border: none;
   cursor: pointer;
   font-family: var(--font-serif);
-  font-size: clamp(13px, 1.2vw, 17px);
+  font-size: clamp(13px, 1.15vw, 16px);
   font-weight: 400;
   color: var(--cream);
   letter-spacing: 0.03em;
   text-align: left;
-  text-shadow: none;
-  transition: background 0.1s, color 0.1s;
+  transition: background 0.08s, color 0.08s;
 }
 
-/* No arrow — matches the screenshot style */
-.npc-topic-btn::before {
+.npc-topic-btn::before,
+.npc-topic-btn::after {
   display: none;
 }
 
+/* Subtle row highlight — matches game's selected item */
 .npc-topic-btn:hover {
   background: rgba(255, 255, 255, 0.07);
   color: var(--white);
 }
 
 .npc-topic-btn--seek {
-  color: var(--cream);
-  margin-top: 6px;
+  margin-top: 8px;
   padding-top: 14px;
-  border-top: 1px solid rgba(190, 180, 160, 0.14);
+  border-top: 1px solid rgba(200, 190, 160, 0.12);
 }
 
 .npc-topic-btn--leave {
-  color: rgba(240, 226, 192, 0.45);
-  margin-top: 4px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(190, 180, 160, 0.1);
+  color: rgba(240, 226, 192, 0.42);
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(200, 190, 160, 0.1);
 }
 
 .npc-topic-btn--leave:hover {
@@ -677,85 +692,98 @@ body {
   color: var(--cream);
 }
 
-/* ── Keyboard hints — below the box ─────────────────── */
-
-.npc-dialog__topics::after {
-  content: "⏎ :OK    Esc :Close";
-  position: absolute;
-  /* Place just below the dialog (dialog is ~50% centred) */
-  top: calc(50% + min(300px, 36vh) + 14px);
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-sans);
-  font-size: clamp(10px, 0.85vw, 13px);
-  letter-spacing: 0.1em;
-  color: rgba(240, 226, 192, 0.4);
-  white-space: nowrap;
-  pointer-events: none;
-}
-
 /* ======================================================
    PHASE 3 — CHOICE MAP
    ====================================================== */
 
 dialog.choice-map {
-  outline: none;
-  background: rgba(22, 19, 14, 0.96);
-  width: min(600px, 72vw);
-  padding: 0;
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   margin: 0;
-  border: 1px solid rgba(190, 180, 160, 0.28);
-  box-shadow: 0 8px 60px rgba(0, 0, 0, 0.95);
+  width: min(580px, 72vw);
+  max-height: 70vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+  padding: 0;
+  background: rgba(18, 15, 10, 0.97);
+  border: 1px solid rgba(200, 190, 160, 0.22);
+  box-shadow: 0 12px 64px rgba(0, 0, 0, 0.96);
 }
 
 dialog[open].choice-map {
   display: flex;
-  flex-direction: column;
-  gap: 0;
 }
 
 dialog.choice-map::backdrop {
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(0, 0, 0, 0.68);
+}
+
+/* Thin rule above title */
+dialog.choice-map::before {
+  content: "";
+  display: block;
+  flex-shrink: 0;
+  height: 1px;
+  background: rgba(200, 190, 160, 0.18);
+}
+
+/* Footer hint row */
+dialog.choice-map::after {
+  content: "⏎ :OK    Esc :Close";
+  display: block;
+  flex-shrink: 0;
+  text-align: center;
+  padding: clamp(9px, 1.4vh, 14px) 0;
+  border-top: 1px solid rgba(200, 190, 160, 0.18);
+  font-family: var(--font-sans);
+  font-size: clamp(10px, 0.82vw, 12px);
+  letter-spacing: 0.12em;
+  color: rgba(240, 226, 192, 0.35);
+  pointer-events: none;
 }
 
 .choice-prompt {
-  font-family: var(--font-display);
-  font-size: clamp(11px, 1vw, 15px);
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
+  flex-shrink: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(12px, 1.1vw, 16px);
+  font-weight: 400;
+  letter-spacing: 0.08em;
   text-align: center;
   color: var(--cream);
-  padding: clamp(18px, 2.8vh, 28px) 32px clamp(14px, 2vh, 22px);
-  border-bottom: 1px solid rgba(190, 180, 160, 0.2);
+  padding: clamp(14px, 2.2vh, 22px) 32px;
+  border-bottom: 1px solid rgba(200, 190, 160, 0.18);
 }
 
+.choice-prompt::before,
 .choice-prompt::after {
   display: none;
 }
 
 .choice-form {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  padding: clamp(14px, 2.5vh, 24px) 0 clamp(24px, 4vh, 40px);
+  padding: clamp(12px, 2vh, 20px) 0;
 }
 
 .choice-btn {
   width: 100%;
-  padding: 8px 32px;
+  padding: 8px 28px;
   background: transparent;
   border: none;
   cursor: pointer;
   font-family: var(--font-serif);
-  font-size: clamp(13px, 1.2vw, 17px);
+  font-size: clamp(13px, 1.15vw, 16px);
   color: var(--cream);
   letter-spacing: 0.03em;
   text-align: left;
-  transition: background 0.1s, color 0.1s;
+  transition: background 0.08s, color 0.08s;
 }
 
 .choice-btn::before {
@@ -768,10 +796,10 @@ dialog.choice-map::backdrop {
 }
 
 .choice-btn--no {
-  color: rgba(240, 226, 192, 0.45);
-  margin-top: 4px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(190, 180, 160, 0.1);
+  color: rgba(240, 226, 192, 0.42);
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(200, 190, 160, 0.1);
 }
 
 .choice-btn--no:hover {

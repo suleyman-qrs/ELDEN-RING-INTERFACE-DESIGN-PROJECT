@@ -478,7 +478,8 @@ const CHAPTER_CUES = (() => {
 ────────────────────────────────────────────────────── */
 
 class ErdtreeHScroll {
-  static #FPS = 12;
+  /** Animation frame rate for PNG sequences. */
+  static #FPS = 18;
 
   /** @type {HTMLElement} */       #section;
   /** @type {HTMLElement} */       #stage;
@@ -499,6 +500,16 @@ class ErdtreeHScroll {
   #sliding     = false;
   #slideTimer  = null;
 
+  // Boss parallax / float state
+  /** Raw mouse offset from stage centre (px). */
+  #mouseX = 0;
+  #mouseY = 0;
+  /** Smoothed (lerped) mouse values. */
+  #lerpX  = 0;
+  #lerpY  = 0;
+  /** RAF handle for the boss animation loop. */
+  #bossRaf = null;
+
   /** @param {AudioController} audio */
   constructor(audio) {
     this.#section  = /** @type {HTMLElement} */ (document.getElementById("erdtree-scroll"));
@@ -514,6 +525,64 @@ class ErdtreeHScroll {
     this.#player.init();
     this.#initVisibilityObserver();
     this.#initWheelHandler();
+    this.#initMouseTracking();
+  }
+
+  /** Track mouse position relative to stage centre for parallax. */
+  #initMouseTracking() {
+    this.#stage.addEventListener("mousemove", e => {
+      const r = this.#stage.getBoundingClientRect();
+      this.#mouseX = e.clientX - r.left  - r.width  / 2;
+      this.#mouseY = e.clientY - r.top   - r.height / 2;
+    }, { passive: true });
+    this.#stage.addEventListener("mouseleave", () => {
+      this.#mouseX = 0;
+      this.#mouseY = 0;
+    }, { passive: true });
+  }
+
+  /**
+   * Start the boss parallax + float animation loop.
+   * Runs only while a boss scene is active.
+   */
+  #startBossAnimation() {
+    if (this.#bossRaf) return;
+    const tick = (/** @type {number} */ ts) => {
+      // Smooth the mouse position (6% lerp per frame ≈ ~90 ms settle at 60fps)
+      this.#lerpX += (this.#mouseX - this.#lerpX) * 0.06;
+      this.#lerpY += (this.#mouseY - this.#lerpY) * 0.06;
+
+      // Sine-based float / drift (independent of mouse)
+      const charFloat = Math.sin(ts / 1900) * 7;        // vertical bob ±7 px
+      const bgDrift   = Math.sin(ts / 2800) * 4;        // slow horizontal drift ±4 px
+
+      const slide = /** @type {HTMLElement | null} */ (
+        this.#stage.querySelector(".boss-slide--active")
+      );
+      if (slide) {
+        const bg   = /** @type {HTMLElement | null} */ (slide.querySelector(".boss-slide__bg"));
+        const char = /** @type {HTMLElement | null} */ (slide.querySelector(".boss-slide__char"));
+        const mx = this.#lerpX, my = this.#lerpY;
+
+        // Background moves opposite and slower than the cursor (parallax depth)
+        if (bg)   bg.style.transform   = `scale(1.07) translate(${-mx * 0.012 + bgDrift}px, ${-my * 0.009}px)`;
+        // Character follows cursor slightly and floats
+        if (char) char.style.transform = `translate(${mx * 0.018}px, ${my * 0.013 + charFloat}px)`;
+      }
+
+      this.#bossRaf = requestAnimationFrame(tick);
+    };
+    this.#bossRaf = requestAnimationFrame(tick);
+  }
+
+  /** Stop the boss animation loop and reset transforms. */
+  #stopBossAnimation() {
+    if (this.#bossRaf) { cancelAnimationFrame(this.#bossRaf); this.#bossRaf = null; }
+    this.#stage.querySelectorAll(".boss-slide__bg, .boss-slide__char").forEach(el => {
+      /** @type {HTMLElement} */ (el).style.transform = "";
+    });
+    this.#lerpX = 0;
+    this.#lerpY = 0;
   }
 
   #initVisibilityObserver() {
@@ -566,15 +635,18 @@ class ErdtreeHScroll {
    */
   #syncBossOverlay(idx) {
     const bossId = SCENES[idx]?.bossId ?? null;
-    // Hide all boss overlays first.
+    // Deactivate all boss overlays (CSS opacity transition handles the fade-out).
     this.#stage.querySelectorAll(".boss-slide").forEach(el => {
       el.classList.remove("boss-slide--active");
     });
     // Show canvas for non-boss scenes; hide it for boss scenes.
     this.#canvasEl.classList.toggle("erdtree-canvas--hidden", bossId !== null);
-    // Reveal the matching boss overlay.
     if (bossId) {
+      // Activate the matching overlay (fades in via CSS transition).
       document.getElementById(`boss-${bossId}`)?.classList.add("boss-slide--active");
+      this.#startBossAnimation();
+    } else {
+      this.#stopBossAnimation();
     }
   }
 

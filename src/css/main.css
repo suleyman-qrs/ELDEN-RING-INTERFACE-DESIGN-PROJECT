@@ -591,6 +591,13 @@ body {
 /* Scene darkens behind dialog */
 .npc-dialog::backdrop {
   background: rgba(0, 0, 0, 0.68);
+  transition: background 0.3s ease;
+}
+
+/* When dialog fades for dialogue playback, clear the backdrop too
+   so the roundtable scene stays visible beneath the subtitle */
+.npc-dialog.npc-dialog--faded::backdrop {
+  background: transparent;
 }
 
 /* Thin rule at very top of panel (above the title) */

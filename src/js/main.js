@@ -1149,6 +1149,89 @@ class RoundtableNPC {
    GRACE EMBERS — golden mote particle system
 ────────────────────────────────────────────────────── */
 
+/* ──────────────────────────────────────────────────────
+   ROUNDTABLE PARALLAX
+   Mouse-driven depth effect on the NPC layers.
+   Background shifts at the slowest rate (feels far away);
+   each NPC layer shifts a little faster (feels closer).
+   A lerp smooths all motion so nothing snaps.
+────────────────────────────────────────────────────── */
+
+/**
+ * @typedef {{ el: HTMLElement, rx: number, ry: number, scale: number }} ParallaxLayer
+ */
+
+class RoundtableParallax {
+  /** @type {ParallaxLayer[]} */ #layers = [];
+  #mouseX  = 0;
+  #mouseY  = 0;
+  #lerpX   = 0;
+  #lerpY   = 0;
+  #rafId   = null;
+
+  constructor() {
+    const section = document.getElementById("roundtable");
+    if (!section) return;
+
+    // rx/ry = fraction of mouse offset applied as translate.
+    // scale  = base scale baked into the JS transform so CSS scale
+    //          is never overridden (background uses 1.05 to give
+    //          parallax headroom so edges are never revealed).
+    /** @type {Array<[string, number, number, number]>} */
+    const defs = [
+      ["rt-base",       0.005, 0.004, 1.05],  // background — barely moves
+      ["rt-img-gideon", 0.012, 0.009, 1],
+      ["rt-img-d",      0.015, 0.011, 1],
+      ["rt-img-rogier", 0.018, 0.013, 1],
+      ["rt-img-enia",   0.022, 0.016, 1],
+    ];
+    for (const [id, rx, ry, scale] of defs) {
+      const el = document.getElementById(id);
+      if (el) this.#layers.push({ el, rx, ry, scale });
+    }
+
+    // Initialise background scale immediately so it's correct before any mouse input.
+    for (const { el, scale } of this.#layers) {
+      if (scale !== 1) el.style.transform = `scale(${scale})`;
+    }
+
+    section.addEventListener("mousemove", e => {
+      const r = section.getBoundingClientRect();
+      this.#mouseX = e.clientX - r.left  - r.width  / 2;
+      this.#mouseY = e.clientY - r.top   - r.height / 2;
+      this.#start();
+    }, { passive: true });
+
+    section.addEventListener("mouseleave", () => {
+      this.#mouseX = 0;
+      this.#mouseY = 0;
+    }, { passive: true });
+  }
+
+  #start() {
+    if (this.#rafId) return;
+    const tick = () => {
+      this.#lerpX += (this.#mouseX - this.#lerpX) * 0.07;
+      this.#lerpY += (this.#mouseY - this.#lerpY) * 0.07;
+
+      for (const { el, rx, ry, scale } of this.#layers) {
+        const scaleStr = scale !== 1 ? `scale(${scale}) ` : "";
+        el.style.transform = `${scaleStr}translate(${this.#lerpX * rx}px, ${this.#lerpY * ry}px)`;
+      }
+
+      // Keep ticking until the lerp has fully settled back to rest.
+      const settled = Math.abs(this.#mouseX - this.#lerpX) < 0.15
+                   && Math.abs(this.#mouseY - this.#lerpY) < 0.15;
+      this.#rafId = settled ? null : requestAnimationFrame(tick);
+    };
+    this.#rafId = requestAnimationFrame(tick);
+  }
+}
+
+/* ──────────────────────────────────────────────────────
+   GRACE EMBERS — golden mote particle system
+────────────────────────────────────────────────────── */
+
 /**
  * @typedef {{ x: number, y: number, size: number, vy: number,
  *   driftAmp: number, driftFreq: number, driftPhase: number,
@@ -1269,6 +1352,7 @@ class EldenRingApp {
 
     new RoundtableHold(this.#audio);
     new ChoiceMap(this.#audio);
+    new RoundtableParallax();
 
     /** @type {readonly NpcConfig[]} */
     const NPC_CONFIGS = Object.freeze([

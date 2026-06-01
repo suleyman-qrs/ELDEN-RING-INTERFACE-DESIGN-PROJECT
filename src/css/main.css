@@ -414,6 +414,11 @@ body {
 
 .rt-layer--base {
   opacity: 1;
+  will-change: transform;
+}
+
+.rt-layer--npc {
+  will-change: transform;
 }
 
 .rt-layer--no-events {

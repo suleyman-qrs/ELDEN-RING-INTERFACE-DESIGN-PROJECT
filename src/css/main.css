@@ -1235,7 +1235,7 @@ body {
 
 .sidenav {
   position: fixed;
-  right: 0;
+  right: 32px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 300;
@@ -1253,95 +1253,88 @@ body {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 26px;
+  align-items: flex-end;   /* all diamonds right-aligned */
 }
 
-/* Each nav item is a full-width flex row: [label] [diamond] */
+/* The button IS the diamond — keeps all dots at the same X position
+   regardless of label length. Label is positioned absolutely to the left. */
 .nav-dot {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
-  padding: 10px 28px 10px 24px;
-  background: transparent;
-  border: none;
+  display: block;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 0;
+  background: rgba(200, 164, 52, 0.2);
+  border: 1px solid rgba(200, 164, 52, 0.42);
   cursor: pointer;
-  /* Subtle pop on hover */
-  transition: transform 0.2s ease;
+  transform: rotate(45deg);
+  transition:
+    background  0.25s ease,
+    border-color 0.25s ease,
+    box-shadow  0.25s ease,
+    transform   0.25s ease;
+}
+
+/* Large hit-area so the label region is also clickable */
+.nav-dot::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -2px;
+  transform: translateY(-50%) rotate(-45deg);
+  width: 180px;
+  height: 44px;
 }
 
 .nav-dot:hover {
-  transform: translateX(-4px);
+  background: rgba(200, 164, 52, 0.55);
+  border-color: rgba(200, 164, 52, 0.8);
+  transform: rotate(45deg) scale(1.4);
 }
 
-/* Diamond mark — the visible indicator on the right edge */
-.nav-dot::after {
-  content: "";
-  display: block;
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  background: rgba(200, 164, 52, 0.2);
-  border: 1px solid rgba(200, 164, 52, 0.45);
-  transform: rotate(45deg);
-  transition:
-    background 0.25s ease,
-    border-color 0.25s ease,
-    box-shadow 0.25s ease,
-    transform 0.25s ease;
-}
-
-.nav-dot:hover::after {
-  background: rgba(200, 164, 52, 0.5);
-  border-color: rgba(200, 164, 52, 0.75);
-  transform: rotate(45deg) scale(1.35);
-}
-
-.nav-dot.active::after {
+.nav-dot.active {
   background: var(--gold);
   border-color: var(--gold-bright);
   box-shadow: 0 0 14px rgba(180, 148, 40, 0.9), 0 0 4px rgba(224, 186, 60, 0.6);
-  transform: rotate(45deg) scale(1.8);
+  transform: rotate(45deg) scale(1.9);
 }
 
-/* Label — hidden by default, slides in from the right on hover */
+/* Label — absolutely positioned to the left of the diamond.
+   Slides in from the right on li hover. */
 .nav-label {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 18px);
+  transform: translateY(-50%) rotate(-45deg) translateX(14px);
   font-family: var(--font-sans);
-  font-size: clamp(9px, 0.72vw, 11px);
+  font-size: clamp(9px, 0.75vw, 11px);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: rgba(240, 226, 192, 0.6);
+  color: rgba(240, 226, 192, 0.55);
   opacity: 0;
-  transform: translateX(16px);
-  transition:
-    opacity   0.25s ease,
-    transform 0.25s ease,
-    color     0.25s ease;
   pointer-events: none;
+  transition:
+    opacity   0.28s ease,
+    transform 0.28s ease,
+    color     0.28s ease;
 }
 
-/* Slide label in when hovering the list item */
+/* Slide label in from the right on hover */
 .sidenav-list li:hover .nav-label {
   opacity: 1;
-  transform: translateX(0);
+  transform: translateY(-50%) rotate(-45deg) translateX(0);
   color: var(--cream);
 }
 
-/* Active item — label stays visible at lower opacity */
-.nav-dot.active .nav-label {
-  opacity: 0.75;
-  transform: translateX(0);
+/* Active: label visible at reduced opacity */
+.sidenav-list li:has(.nav-dot.active) .nav-label {
+  opacity: 0.7;
+  transform: translateY(-50%) rotate(-45deg) translateX(0);
   color: var(--gold);
 }
-
-/* Stagger the slide-in for each label per item (Elden Ring menu feel) */
-.sidenav-list li:nth-child(1):hover .nav-label { transition-delay: 0ms;   }
-.sidenav-list li:nth-child(2):hover .nav-label { transition-delay: 20ms;  }
-.sidenav-list li:nth-child(3):hover .nav-label { transition-delay: 40ms;  }
-.sidenav-list li:nth-child(4):hover .nav-label { transition-delay: 60ms;  }
-.sidenav-list li:nth-child(5):hover .nav-label { transition-delay: 80ms;  }
 
 /* ======================================================
    GLOBAL FADE MAP
@@ -1369,10 +1362,6 @@ body {
 @media (max-width: 768px) {
   .nav-label {
     display: none;
-  }
-
-  .nav-dot {
-    padding: 10px 16px 10px 12px;
   }
 
   .about-body {

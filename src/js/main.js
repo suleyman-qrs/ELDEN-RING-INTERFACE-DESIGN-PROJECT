@@ -287,7 +287,7 @@ class AudioController {
 ────────────────────────────────────────────────────── */
 
 /**
- * @typedef {{ dir: string, prefix: string, count: number, audio: string[], text: string, loop?: boolean, bossId?: string }} SceneData
+ * @typedef {{ dir: string, prefix: string, count: number, audio: string[], text: string, loop?: boolean, bossId?: string, videoId?: string }} SceneData
  */
 
 /** @type {readonly SceneData[]} */
@@ -298,6 +298,7 @@ const SCENES = Object.freeze([
     count: 55,
     audio: ["audio/dialogue/Elden Ring.wav", "audio/dialogue/O Elden Ring.wav"],
     text: "Elden Ring. O, Elden Ring.",
+    videoId: "elden-ring",
   },
   {
     dir: "Scenes/02_Its_Gold",
@@ -305,6 +306,7 @@ const SCENES = Object.freeze([
     count: 59,
     audio: ["audio/dialogue/its gold commanded the very stars.wav"],
     text: "Its gold commanded<br>the very stars,",
+    videoId: "radagon",
   },
   {
     dir: "Scenes/03_Shattered",
@@ -312,6 +314,7 @@ const SCENES = Object.freeze([
     count: 63,
     audio: ["audio/dialogue/Shattered, by someone, or something.wav"],
     text: "Shattered, by someone,<br>or something.",
+    videoId: "hammer",
   },
   {
     dir: "Scenes/04_Godrick",
@@ -359,6 +362,7 @@ const SCENES = Object.freeze([
     count: 47,
     audio: ["audio/dialogue/Each, inheriting their own shard, played a part in the Shattering.wav"],
     text: "Each, inheriting their own shard,<br>played a part in the Shattering,",
+    videoId: "vyke",
   },
   {
     dir: "Scenes/10_A_War",
@@ -366,6 +370,7 @@ const SCENES = Object.freeze([
     count: 43,
     audio: ["audio/dialogue/a war with no end, and no victor.wav"],
     text: "a war with no end,<br>and no victor.",
+    videoId: "malenia-radahn",
   },
   {
     dir: "Scenes/11_and_so_the_two_Fingers",
@@ -373,6 +378,7 @@ const SCENES = Object.freeze([
     count: 45,
     audio: ["audio/dialogue/And so the Two Fingers call upon ye, the Tarnished.wav"],
     text: "And so the Two Fingers<br>call upon ye, the Tarnished.",
+    videoId: "tarnished",
   },
   {
     dir: "Scenes/12_To_cross_the_fog",
@@ -381,6 +387,7 @@ const SCENES = Object.freeze([
     audio: ["audio/dialogue/To cross the Sea of Fog, to the Lands Between To seek the Elden Ring. Seek the Elden Ring.wav"],
     text: "To cross the Sea of Fog,<br>to the Lands Between.<br><br>To seek the Elden Ring.<br>Seek the Elden Ring.",
     loop: true,
+    videoId: "erdtree",
   },
 ]);
 
@@ -672,24 +679,46 @@ class ErdtreeHScroll {
   }
 
   /**
-   * Show the boss overlay for a scene that has a bossId, or hide it for
-   * canvas scenes. All other boss overlays are always hidden.
+   * Show the correct overlay (boss image or video) for the given scene index,
+   * or restore the canvas for pure PNG-sequence scenes.
+   * Pauses any outgoing video and plays the incoming one.
    * @param {number} idx
    */
-  #syncBossOverlay(idx) {
-    const bossId = SCENES[idx]?.bossId ?? null;
-    // Deactivate all boss overlays (CSS opacity transition handles the fade-out).
+  #syncOverlay(idx) {
+    const scene   = SCENES[idx] ?? {};
+    const bossId  = scene.bossId  ?? null;
+    const videoId = scene.videoId ?? null;
+    const isOverlay = bossId !== null || videoId !== null;
+
+    // Deactivate all boss overlays.
     this.#stage.querySelectorAll(".boss-slide").forEach(el => {
       el.classList.remove("boss-slide--active");
     });
-    // Show canvas for non-boss scenes; hide it for boss scenes.
-    this.#canvasEl.classList.toggle("erdtree-canvas--hidden", bossId !== null);
+
+    // Pause + deactivate all video overlays.
+    this.#stage.querySelectorAll(".scene-video").forEach(el => {
+      el.classList.remove("scene-video--active");
+      const v = el.querySelector("video");
+      if (v) { v.pause(); v.currentTime = 0; }
+    });
+
+    // Canvas: visible only for pure PNG scenes.
+    this.#canvasEl.classList.toggle("erdtree-canvas--hidden", isOverlay);
+
     if (bossId) {
-      // Activate the matching overlay (fades in via CSS transition).
       document.getElementById(`boss-${bossId}`)?.classList.add("boss-slide--active");
       this.#startBossAnimation();
     } else {
       this.#stopBossAnimation();
+    }
+
+    if (videoId) {
+      const el = document.getElementById(`scene-${videoId}`);
+      if (el) {
+        el.classList.add("scene-video--active");
+        const v = /** @type {HTMLVideoElement|null} */ (el.querySelector("video"));
+        v?.play().catch(() => {});
+      }
     }
   }
 
@@ -710,10 +739,17 @@ class ErdtreeHScroll {
     this.#stopPlay();
 
     if (isFirst) {
-      this.#syncBossOverlay(idx);
+      this.#syncOverlay(idx);
       this.#checkChapterCues();
-      this.#lastTs = null;
-      this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
+      if (!SCENES[idx].videoId) {
+        // PNG-sequence scene — run the frame animation loop.
+        this.#lastTs = null;
+        this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
+      } else if (idx >= SCENES.length - 1) {
+        // Last scene is a video — unlock scroll immediately.
+        this.#done = true;
+        document.body.style.overflow = "";
+      }
       return;
     }
 
@@ -727,18 +763,28 @@ class ErdtreeHScroll {
     el.style.transform  = `translateX(${outX})`;
 
     this.#slideTimer = setTimeout(() => {
-      this.#syncBossOverlay(idx);
-      this.#player.seek(this.#frame);
+      this.#syncOverlay(idx);
       this.#checkChapterCues();
 
-      el.style.transition = "none";
-      el.style.transform  = `translateX(${inX})`;
-      void el.offsetWidth;
-      el.style.transition = "transform 0.35s ease-out";
-      el.style.transform  = "translateX(0)";
-
-      this.#lastTs = null;
-      this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
+      if (!SCENES[idx].videoId) {
+        // PNG-sequence scene — seek and start frame loop.
+        this.#player.seek(this.#frame);
+        el.style.transition = "none";
+        el.style.transform  = `translateX(${inX})`;
+        void el.offsetWidth;
+        el.style.transition = "transform 0.35s ease-out";
+        el.style.transform  = "translateX(0)";
+        this.#lastTs = null;
+        this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
+      } else {
+        // Video scene — no frame loop needed.
+        el.style.transition = "";
+        el.style.transform  = "";
+        if (idx >= SCENES.length - 1) {
+          this.#done = true;
+          document.body.style.overflow = "";
+        }
+      }
 
       this.#slideTimer = setTimeout(() => {
         el.style.transition = "";

@@ -4,6 +4,15 @@
 
 "use strict";
 
+/* ── Shared constants ──────────────────────────────── */
+
+/** @type {readonly string[]} */
+const UNLOCK_EVENTS = Object.freeze([
+  "click", "touchstart", "keydown", "wheel", "pointerdown",
+]);
+
+const FADE_STEP_MS = 50;
+
 /* ──────────────────────────────────────────────────────
    AUDIO CONTROLLER
    Handles BGM, sequential SFX, and non-overlapping
@@ -12,75 +21,67 @@
 ────────────────────────────────────────────────────── */
 
 class AudioController {
-  constructor() {
-    this.bgm = null;
-    this.dialogue = null;
-    this.sfxList = [];
-    this.unlocked = false;
-    this._pendingBgm = false;
+  /** @type {HTMLAudioElement | null} */ #bgm = null;
+  /** @type {HTMLAudioElement | null} */ #dialogue = null;
+  /** @type {HTMLAudioElement[]} */      #sfxList = [];
+  #unlocked = false;
+  #pendingBgm = false;
+  /** @type {Array<() => void>} */       #unlockCallbacks = [];
 
-    const UNLOCK_EVENTS = [
-      "click",
-      "touchstart",
-      "keydown",
-      "wheel",
-      "pointerdown",
-    ];
-    this._unlockCallbacks = [];
+  constructor() {
     const unlock = () => {
-      if (this.unlocked) return;
-      this.unlocked = true;
-      if (this._pendingBgm && this.bgm) {
-        this._tryPlay(this.bgm);
-      }
-      for (const cb of this._unlockCallbacks) cb();
-      this._unlockCallbacks = [];
-      for (const evt of UNLOCK_EVENTS) {
-        document.removeEventListener(evt, unlock);
-      }
+      if (this.#unlocked) return;
+      this.#unlocked = true;
+      if (this.#pendingBgm && this.#bgm) this.#tryPlay(this.#bgm);
+      for (const cb of this.#unlockCallbacks) cb();
+      this.#unlockCallbacks = [];
+      for (const evt of UNLOCK_EVENTS) document.removeEventListener(evt, unlock);
     };
     for (const evt of UNLOCK_EVENTS) {
       document.addEventListener(evt, unlock, { passive: true });
     }
   }
 
-  _tryPlay(audio) {
-    const result = audio.play();
-    if (result !== undefined) {
-      result.catch((err) => {
-        console.warn("Audio play failed:", err);
-        // Retry once canplay fires in case the file is still loading
-        audio.addEventListener(
-          "canplay",
-          () =>
-            audio.play().catch((e) => console.warn("Audio retry failed:", e)),
-          { once: true },
-        );
-      });
-    }
+  /** @param {HTMLAudioElement} audio */
+  #tryPlay(audio) {
+    audio.play().catch(err => {
+      console.warn("Audio play failed:", err);
+      audio.addEventListener(
+        "canplay",
+        () => audio.play().catch(e => console.warn("Audio retry failed:", e)),
+        { once: true },
+      );
+    });
   }
 
+  /**
+   * Starts background music, stopping any currently playing BGM first.
+   * @param {string} src
+   * @param {number} [volume=0.4]
+   */
   startBgm(src, volume = 0.4) {
-    if (this.bgm && !this.bgm.paused) {
-      this.bgm.pause();
-    }
-    this.bgm = new Audio(src);
-    this.bgm.loop = true;
-    this.bgm.volume = volume;
-    this.bgm.preload = "auto";
-    this.bgm.load();
-    if (this.unlocked) {
-      this._tryPlay(this.bgm);
+    this.#bgm?.pause();
+    this.#bgm = new Audio(src);
+    this.#bgm.loop = true;
+    this.#bgm.volume = volume;
+    this.#bgm.preload = "auto";
+    this.#bgm.load();
+    if (this.#unlocked) {
+      this.#tryPlay(this.#bgm);
     } else {
-      this._pendingBgm = true;
+      this.#pendingBgm = true;
     }
   }
 
+  /**
+   * Fades out and stops the current BGM.
+   * @param {number} [fadeDuration=2500]
+   */
   stopBgm(fadeDuration = 2500) {
-    if (!this.bgm || this.bgm.paused) return;
-    const bgm = this.bgm;
+    if (!this.#bgm || this.#bgm.paused) return;
+    const bgm = this.#bgm;
     const initial = bgm.volume;
-    const step = initial / (fadeDuration / 50);
+    const step = initial / (fadeDuration / FADE_STEP_MS);
     const id = setInterval(() => {
       if (bgm.volume > step) {
         bgm.volume -= step;
@@ -89,96 +90,132 @@ class AudioController {
         bgm.volume = initial;
         clearInterval(id);
       }
-    }, 50);
+    }, FADE_STEP_MS);
   }
 
+  /** Stops the current BGM immediately with no fade. */
   stopBgmNow() {
-    if (!this.bgm) return;
-    this.bgm.pause();
-    this.bgm = null;
+    this.#bgm?.pause();
+    this.#bgm = null;
   }
 
+  /**
+   * @param {string} newSrc
+   * @param {number} [fadeDuration=2000]
+   * @param {number} [newVolume=0.4]
+   */
   crossfadeToBgm(newSrc, fadeDuration = 2000, newVolume = 0.4) {
     this.stopBgm(fadeDuration);
     setTimeout(() => this.startBgm(newSrc, newVolume), fadeDuration * 0.6);
   }
 
+  /**
+   * Plays multiple SFX tracks concurrently.
+   * @param {string[]} srcs
+   * @param {number} [volume=1]
+   */
   playSfxSimultaneous(srcs, volume = 1) {
-    if (!this.unlocked || !srcs.length) return;
+    if (!this.#unlocked || !srcs.length) return;
     for (const src of srcs) {
       const sfx = new Audio(src);
       sfx.volume = volume;
       sfx.play().catch(() => {});
-      this.sfxList.push(sfx);
-      sfx.addEventListener(
-        "ended",
-        () => {
-          this.sfxList = this.sfxList.filter((s) => s !== sfx);
-        },
-        { once: true },
-      );
+      this.#sfxList.push(sfx);
+      sfx.addEventListener("ended", () => {
+        this.#sfxList = this.#sfxList.filter(s => s !== sfx);
+      }, { once: true });
     }
   }
 
+  /** Stops all active SFX immediately. */
   stopSfx() {
-    for (const sfx of this.sfxList) {
-      sfx.pause();
-    }
-    this.sfxList = [];
+    for (const sfx of this.#sfxList) sfx.pause();
+    this.#sfxList = [];
   }
 
+  /**
+   * Plays SFX tracks one after another.
+   * @param {string[]} srcs
+   * @param {number} [volume=1]
+   */
   playSfxSequence(srcs, volume = 1) {
-    if (!this.unlocked || !srcs.length) return;
+    if (!this.#unlocked || !srcs.length) return;
     const [first, ...rest] = srcs;
     const sfx = new Audio(first);
     sfx.volume = volume;
     sfx.play().catch(() => {});
     if (rest.length) {
-      sfx.addEventListener("ended", () => this.playSfxSequence(rest, volume), {
-        once: true,
-      });
+      sfx.addEventListener("ended", () => this.playSfxSequence(rest, volume), { once: true });
     }
   }
 
-  // loop: when the final track ends, restart from the top of srcs
-  playDialogueSequence(srcs, loop = false) {
-    if (this.dialogue) {
-      this.dialogue.pause();
-      this.dialogue.currentTime = 0;
-      this.dialogue = null;
-    }
-    if (!this.unlocked || !srcs.length) return;
+  /**
+   * Plays dialogue tracks sequentially, optionally looping the full sequence.
+   * @param {string[]} srcs    - Tracks to play in this call
+   * @param {boolean}  [loop=false]
+   * @param {string[]} [_root=srcs] - Full original sequence (used to restart loop correctly)
+   */
+  playDialogueSequence(srcs, loop = false, _root = srcs) {
+    this.#dialogue?.pause();
+    this.#dialogue = null;
+    if (!this.#unlocked || !srcs.length) return;
+
     const [first, ...rest] = srcs;
-    this.dialogue = new Audio(first);
-    this.dialogue.volume = 1;
-    this.dialogue.play().catch(() => {});
+    this.#dialogue = new Audio(first);
+    this.#dialogue.volume = 1;
+    this.#dialogue.play().catch(() => {});
+
     if (rest.length) {
-      this.dialogue.addEventListener(
+      this.#dialogue.addEventListener(
         "ended",
-        () => this.playDialogueSequence(rest, loop),
+        () => this.playDialogueSequence(rest, loop, _root),
         { once: true },
       );
     } else if (loop) {
-      this.dialogue.addEventListener(
+      this.#dialogue.addEventListener(
         "ended",
-        () => this.playDialogueSequence(srcs, loop),
+        () => this.playDialogueSequence(_root, loop, _root),
         { once: true },
       );
     }
   }
 
-  stopDialogue() {
-    if (!this.dialogue) return;
-    this.dialogue.pause();
-    this.dialogue = null;
+  /**
+   * Plays one or more dialogue files in sequence, calling onEnd after the last one.
+   * @param {string[]}   srcs
+   * @param {() => void} [onEnd]
+   */
+  playDialogueLine(srcs, onEnd) {
+    this.#dialogue?.pause();
+    this.#dialogue = null;
+    if (!this.#unlocked || !srcs.length) { onEnd?.(); return; }
+
+    const [first, ...rest] = srcs;
+    this.#dialogue = new Audio(first);
+    this.#dialogue.volume = 1;
+    this.#dialogue.play().catch(() => {});
+
+    const next = rest.length
+      ? () => this.playDialogueLine(rest, onEnd)
+      : onEnd ?? (() => {});
+
+    this.#dialogue.addEventListener("ended", next, { once: true });
+    this.#dialogue.addEventListener("error",  next, { once: true });
   }
 
+  /** Stops the current dialogue track. */
+  stopDialogue() {
+    this.#dialogue?.pause();
+    this.#dialogue = null;
+  }
+
+  /**
+   * Calls cb immediately if audio is already unlocked, otherwise queues it.
+   * @param {() => void} cb
+   */
   onUnlock(cb) {
-    if (this.unlocked) {
-      cb();
-    } else {
-      this._unlockCallbacks.push(cb);
-    }
+    if (this.#unlocked) cb();
+    else this.#unlockCallbacks.push(cb);
   }
 }
 
@@ -188,7 +225,12 @@ class AudioController {
    Each entry maps to Scenes/<dir>/<prefix>NN.png.
 ────────────────────────────────────────────────────── */
 
-const SCENES = [
+/**
+ * @typedef {{ dir: string, prefix: string, count: number, audio: string[], text: string, loop?: boolean }} SceneData
+ */
+
+/** @type {readonly SceneData[]} */
+const SCENES = Object.freeze([
   {
     dir: "Scenes/01_Elden_Ring",
     prefix: "Elden_ring",
@@ -249,9 +291,7 @@ const SCENES = [
     dir: "Scenes/09_Each_Inheriting",
     prefix: "each_inheriting",
     count: 47,
-    audio: [
-      "audio/dialogue/Each, inheriting their own shard, played a part in the Shattering.wav",
-    ],
+    audio: ["audio/dialogue/Each, inheriting their own shard, played a part in the Shattering.wav"],
     text: "Each, inheriting their own shard,<br>played a part in the Shattering,",
   },
   {
@@ -265,22 +305,18 @@ const SCENES = [
     dir: "Scenes/11_and_so_the_two_Fingers",
     prefix: "and_so_the_two_fingers",
     count: 45,
-    audio: [
-      "audio/dialogue/And so the Two Fingers call upon ye, the Tarnished.wav",
-    ],
+    audio: ["audio/dialogue/And so the Two Fingers call upon ye, the Tarnished.wav"],
     text: "And so the Two Fingers<br>call upon ye, the Tarnished.",
   },
   {
     dir: "Scenes/12_To_cross_the_fog",
     prefix: "to_cross_the_fog",
     count: 92,
-    audio: [
-      "audio/dialogue/To cross the Sea of Fog, to the Lands Between To seek the Elden Ring. Seek the Elden Ring.wav",
-    ],
+    audio: ["audio/dialogue/To cross the Sea of Fog, to the Lands Between To seek the Elden Ring. Seek the Elden Ring.wav"],
     text: "To cross the Sea of Fog,<br>to the Lands Between.<br><br>To seek the Elden Ring.<br>Seek the Elden Ring.",
     loop: true,
   },
-];
+]);
 
 const TOTAL_FRAMES = SCENES.reduce((sum, s) => sum + s.count, 0);
 
@@ -291,30 +327,35 @@ const TOTAL_FRAMES = SCENES.reduce((sum, s) => sum + s.count, 0);
 ────────────────────────────────────────────────────── */
 
 class ErdtreePlayer {
-  static AHEAD = 22;
-  static BEHIND = 6;
+  static #AHEAD  = 22;
+  static #BEHIND = 6;
 
+  /** @type {HTMLCanvasElement} */          #canvas;
+  /** @type {CanvasRenderingContext2D} */   #ctx;
+  /** @type {Map<number, HTMLImageElement>} */ #cache   = new Map();
+  /** @type {Set<number>} */                #loading = new Set();
+  #currentFrame = -1;
+
+  /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
-    this.cache = new Map();
-    this.loading = new Set();
-    this.currentFrame = -1;
-    this._resize();
-    window.addEventListener("resize", () => this._resize(), { passive: true });
+    this.#canvas = canvas;
+    this.#ctx    = /** @type {CanvasRenderingContext2D} */ (canvas.getContext("2d"));
+    this.#resize();
+    window.addEventListener("resize", () => this.#resize(), { passive: true });
   }
 
-  _resize() {
-    const p = this.canvas.parentElement;
-    this.canvas.width = p ? p.clientWidth : window.innerWidth;
-    this.canvas.height = p ? p.clientHeight : window.innerHeight;
-    if (this.currentFrame >= 0) {
-      const img = this.cache.get(this.currentFrame);
-      if (img) this._draw(img);
+  #resize() {
+    const p = this.#canvas.parentElement;
+    this.#canvas.width  = p?.clientWidth  ?? window.innerWidth;
+    this.#canvas.height = p?.clientHeight ?? window.innerHeight;
+    if (this.#currentFrame >= 0) {
+      const img = this.#cache.get(this.#currentFrame);
+      if (img) this.#draw(img);
     }
   }
 
-  _src(i) {
+  /** @param {number} i - global frame index */
+  #src(i) {
     let g = i;
     for (const scene of SCENES) {
       if (g < scene.count) {
@@ -322,297 +363,284 @@ class ErdtreePlayer {
       }
       g -= scene.count;
     }
-    const last = SCENES[SCENES.length - 1];
+    const last = SCENES.at(-1);
     return `${last.dir}/${last.prefix}${String(last.count - 1).padStart(2, "0")}.png`;
   }
 
-  _load(i) {
+  /** @param {number} i */
+  #load(i) {
     if (i < 0 || i >= TOTAL_FRAMES) return;
-    if (this.cache.has(i) || this.loading.has(i)) return;
-    this.loading.add(i);
+    if (this.#cache.has(i) || this.#loading.has(i)) return;
+    this.#loading.add(i);
     const img = new Image();
-    img.onload = () => {
-      this.loading.delete(i);
-      this.cache.set(i, img);
-      if (i === this.currentFrame) this._draw(img);
+    img.onload  = () => {
+      this.#loading.delete(i);
+      this.#cache.set(i, img);
+      if (i === this.#currentFrame) this.#draw(img);
     };
-    img.onerror = () => this.loading.delete(i);
-    img.src = this._src(i);
+    img.onerror = () => this.#loading.delete(i);
+    img.src = this.#src(i);
   }
 
-  _evict(center) {
-    for (const k of this.cache.keys()) {
-      if (
-        k < center - ErdtreePlayer.BEHIND ||
-        k > center + ErdtreePlayer.AHEAD
-      ) {
-        this.cache.delete(k);
+  /** @param {number} center */
+  #evict(center) {
+    for (const k of this.#cache.keys()) {
+      if (k < center - ErdtreePlayer.#BEHIND || k > center + ErdtreePlayer.#AHEAD) {
+        this.#cache.delete(k);
       }
     }
   }
 
-  _draw(img) {
-    const cw = this.canvas.width,
-      ch = this.canvas.height;
+  /** @param {HTMLImageElement} img */
+  #draw(img) {
+    const { width: cw, height: ch } = this.#canvas;
     const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
-    const w = img.naturalWidth * scale;
+    const w = img.naturalWidth  * scale;
     const h = img.naturalHeight * scale;
-    this.ctx.clearRect(0, 0, cw, ch);
-    this.ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
+    this.#ctx.clearRect(0, 0, cw, ch);
+    this.#ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
   }
 
+  /** @param {number} frameIdx */
   seek(frameIdx) {
     frameIdx = Math.max(0, Math.min(TOTAL_FRAMES - 1, frameIdx));
-    this._evict(frameIdx);
-    const end = Math.min(frameIdx + ErdtreePlayer.AHEAD, TOTAL_FRAMES - 1);
-    for (let i = frameIdx; i <= end; i++) this._load(i);
-    if (frameIdx !== this.currentFrame) {
-      this.currentFrame = frameIdx;
-      const img = this.cache.get(frameIdx);
-      if (img) this._draw(img);
+    this.#evict(frameIdx);
+    const end = Math.min(frameIdx + ErdtreePlayer.#AHEAD, TOTAL_FRAMES - 1);
+    for (let i = frameIdx; i <= end; i++) this.#load(i);
+    if (frameIdx !== this.#currentFrame) {
+      this.#currentFrame = frameIdx;
+      const img = this.#cache.get(frameIdx);
+      if (img) this.#draw(img);
     }
   }
 
   init() {
-    for (let i = 0; i < Math.min(30, TOTAL_FRAMES); i++) {
-      this._load(i);
-    }
+    for (let i = 0; i < Math.min(30, TOTAL_FRAMES); i++) this.#load(i);
   }
 }
 
 /* ──────────────────────────────────────────────────────
-   NARRATION HORIZONTAL SCROLL
-   Drives the multi-scene PNG animation via scrollLeft.
-   Displays subtitles at bottom-center.
-   Triggers dialogue audio per scene.
-   Converts vertical wheel → horizontal scroll.
+   CHAPTER CUES
+   One cue fires at the first frame of each scene.
+   "Giving life" has no dedicated scene folder so it is
+   inserted as a mid-scene-01 cue.
 ────────────────────────────────────────────────────── */
 
-// Derive chapter cues from SCENES — one cue fires at the first frame of each scene.
-// "Giving life" has no dedicated scene folder so it's inserted as a mid-scene-01 cue.
+/**
+ * @typedef {{ frame: number, audio: string[], text: string, loop: boolean }} ChapterCue
+ * @type {readonly ChapterCue[]}
+ */
 const CHAPTER_CUES = (() => {
   let frame = 0;
-  const cues = SCENES.map((s) => {
-    const cue = { frame, audio: s.audio, text: s.text, loop: s.loop || false };
+  const cues = SCENES.map(s => {
+    const cue = { frame, audio: s.audio, text: s.text, loop: s.loop ?? false };
     frame += s.count;
     return cue;
   });
   cues.splice(1, 0, {
     frame: 40,
     audio: ["audio/dialogue/giving life its fullest brilliance.wav"],
-    text: "Giving life its<br>fullest brilliance.",
+    text:  "Giving life its<br>fullest brilliance.",
+    loop:  false,
   });
-  return cues;
+  return Object.freeze(cues);
 })();
 
+/* ──────────────────────────────────────────────────────
+   NARRATION SCENE PLAYER
+   Drives the multi-scene PNG animation.
+   Displays subtitles and triggers dialogue per scene.
+   Converts vertical wheel → scene advance / rewind.
+────────────────────────────────────────────────────── */
+
 class ErdtreeHScroll {
-  static FPS = 12; // cinematic playback rate
+  static #FPS = 12;
 
+  /** @type {HTMLElement} */       #section;
+  /** @type {HTMLElement} */       #stage;
+  /** @type {HTMLElement} */       #subtitle;
+  /** @type {HTMLElement} */       #canvasEl;
+  /** @type {ErdtreePlayer} */     #player;
+  /** @type {AudioController} */   #audio;
+  /** @type {number[]} */          #sceneStart = [];
+
+  #chapter     = -1;
+  #rafId       = null;
+  #lastTs      = null;
+  #frame       = 0;
+  #targetFrame = -1;
+  #sceneIdx    = -1;   // -1 = not yet entered
+  #active      = false;
+  #done        = false; // true once last scene finishes
+  #sliding     = false; // true during slide transition
+  #slideTimer  = null;
+
+  /** @param {AudioController} audio */
   constructor(audio) {
-    this.section = document.getElementById("erdtree-scroll");
-    this.stage = document.getElementById("erdtree-stage");
-    this.subtitle = document.getElementById("erdtree-subtitle");
-    this.player = new ErdtreePlayer(document.getElementById("erdtree-canvas"));
-    this.audio = audio;
-    this.chapter = -1;
+    this.#section  = /** @type {HTMLElement} */ (document.getElementById("erdtree-scroll"));
+    this.#stage    = /** @type {HTMLElement} */ (document.getElementById("erdtree-stage"));
+    this.#subtitle = /** @type {HTMLElement} */ (document.getElementById("erdtree-subtitle"));
+    this.#canvasEl = /** @type {HTMLElement} */ (document.getElementById("erdtree-canvas"));
+    this.#player   = new ErdtreePlayer(/** @type {HTMLCanvasElement} */ (this.#canvasEl));
+    this.#audio    = audio;
 
-    this._rafId = null;
-    this._lastTs = null;
-    this._tick = this._tick.bind(this);
-
-    this._frame = 0;
-    this._targetFrame = -1;
-    this._sceneIdx = -1; // -1 = not started
-    this._active = false;
-    this._done = false; // true once last scene finishes
-    this._sliding = false; // true during slide transition
-
-    this._canvasEl = document.getElementById("erdtree-canvas");
-    this._slideTimer = null;
-
-    // Precompute the first frame index for each scene
-    this._sceneStart = [];
     let f = 0;
-    for (const scene of SCENES) {
-      this._sceneStart.push(f);
-      f += scene.count;
-    }
+    for (const scene of SCENES) { this.#sceneStart.push(f); f += scene.count; }
 
-    this.player.init();
-
-    // Show/hide canvas map as section enters/leaves the viewport.
-    // Stage uses a higher threshold (0.6) so it fades out quickly once the
-    // user scrolls past — without this the fixed canvas blocks visual feedback.
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        const ratio = entry.intersectionRatio;
-        this.stage.classList.toggle("active", ratio > 0.6);
-        if (ratio > 0.5) {
-          this._active = true;
-          if (this._sceneIdx < 0) {
-            // First entry: lock page scroll and begin scene 0
-            document.body.style.overflow = "hidden";
-            this._goToScene(0);
-          } else if (!this._done) {
-            // Re-entry before finishing: re-lock
-            document.body.style.overflow = "hidden";
-          }
-        } else if (ratio < 0.1) {
-          this._active = false;
-          this.subtitle.classList.remove("visible");
-          this.chapter = -1;
-          this._stopPlay();
-          this.audio.stopDialogue();
-        }
-      },
-      { threshold: [0, 0.1, 0.5, 0.6, 1.0] },
-    );
-    io.observe(this.section);
-
-    // Wheel → advance or rewind one scene at a time.
-    // While a scene is playing or transitioning, swallow the event so it
-    // doesn't race ahead. At the edges, pass through so the page can scroll.
-    window.addEventListener(
-      "wheel",
-      (e) => {
-        if (!this._active) return;
-        if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
-
-        const goingDown = e.deltaY > 0;
-
-        // Scene still playing or slide in progress — absorb scroll
-        if (this._rafId || this._sliding) {
-          e.preventDefault();
-          return;
-        }
-
-        // Last scene done → release downward scroll to page
-        if (goingDown && this._done) return;
-
-        // At scene 0 scrolling up → unlock page and let it scroll
-        if (!goingDown && this._sceneIdx <= 0) {
-          document.body.style.overflow = "";
-          return;
-        }
-
-        e.preventDefault();
-        this._goToScene(this._sceneIdx + (goingDown ? 1 : -1));
-      },
-      { passive: false },
-    );
+    this.#player.init();
+    this.#initVisibilityObserver();
+    this.#initWheelHandler();
   }
 
-  _goToScene(idx) {
+  #initVisibilityObserver() {
+    // Stage uses a higher threshold (0.6) so it fades out quickly once the
+    // user scrolls past — without this the fixed canvas blocks visual feedback.
+    const io = new IntersectionObserver(([entry]) => {
+      const ratio = entry.intersectionRatio;
+      this.#stage.classList.toggle("active", ratio > 0.6);
+
+      if (ratio > 0.5) {
+        this.#active = true;
+        if (this.#sceneIdx < 0) {
+          document.body.style.overflow = "hidden";
+          this.#goToScene(0);
+        } else if (!this.#done) {
+          document.body.style.overflow = "hidden";
+        }
+      } else if (ratio < 0.1) {
+        this.#active = false;
+        this.#subtitle.classList.remove("visible");
+        this.#chapter = -1;
+        this.#stopPlay();
+        this.#audio.stopDialogue();
+      }
+    }, { threshold: [0, 0.1, 0.5, 0.6, 1.0] });
+    io.observe(this.#section);
+  }
+
+  #initWheelHandler() {
+    // While a scene is playing or transitioning, swallow the event so it
+    // doesn't race ahead. At the edges, pass through so the page can scroll.
+    window.addEventListener("wheel", e => {
+      if (!this.#active) return;
+      if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+
+      const goingDown = e.deltaY > 0;
+
+      if (this.#rafId || this.#sliding) { e.preventDefault(); return; }
+      if (goingDown && this.#done) return;
+      if (!goingDown && this.#sceneIdx <= 0) {
+        document.body.style.overflow = "";
+        return;
+      }
+
+      e.preventDefault();
+      this.#goToScene(this.#sceneIdx + (goingDown ? 1 : -1));
+    }, { passive: false });
+  }
+
+  /** @param {number} idx */
+  #goToScene(idx) {
     idx = Math.max(0, Math.min(SCENES.length - 1, idx));
 
-    const isFirst = this._sceneIdx < 0;
-    const direction = idx >= this._sceneIdx ? 1 : -1;
+    const isFirst   = this.#sceneIdx < 0;
+    const direction = idx >= this.#sceneIdx ? 1 : -1;
 
-    this._done = false;
-    this._sceneIdx = idx;
-    this._frame = this._sceneStart[idx];
-    this._targetFrame =
-      idx < SCENES.length - 1
-        ? this._sceneStart[idx + 1] - 1
-        : TOTAL_FRAMES - 1;
+    this.#done        = false;
+    this.#sceneIdx    = idx;
+    this.#frame       = this.#sceneStart[idx];
+    this.#targetFrame = idx < SCENES.length - 1
+      ? this.#sceneStart[idx + 1] - 1
+      : TOTAL_FRAMES - 1;
 
-    this._stopPlay();
+    this.#stopPlay();
 
     if (isFirst) {
-      // No slide for the very first scene — just start playing
-      this._checkChapterCues();
-      this._lastTs = null;
-      this._rafId = requestAnimationFrame(this._tick);
+      this.#checkChapterCues();
+      this.#lastTs = null;
+      this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
       return;
     }
 
-    // Slide transition: old frame slides out, new slides in
-    this._sliding = true;
-    clearTimeout(this._slideTimer);
-    const el = this._canvasEl;
+    // Slide transition: old frame slides out, new slides in.
+    this.#sliding = true;
+    clearTimeout(this.#slideTimer);
+    const el   = this.#canvasEl;
     const outX = direction === 1 ? "-100%" : "100%";
-    const inX = direction === 1 ? "100%" : "-100%";
+    const inX  = direction === 1 ?  "100%" : "-100%";
 
     el.style.transition = "transform 0.3s ease-in";
-    el.style.transform = `translateX(${outX})`;
+    el.style.transform  = `translateX(${outX})`;
 
-    this._slideTimer = setTimeout(() => {
-      // First frame of the new scene is ready; fire cues now so
-      // dialogue starts as the new content slides into view
-      this.player.seek(this._frame);
-      this._checkChapterCues();
+    this.#slideTimer = setTimeout(() => {
+      // Seek and fire cues now so dialogue starts as the new frame slides in.
+      this.#player.seek(this.#frame);
+      this.#checkChapterCues();
 
       el.style.transition = "none";
-      el.style.transform = `translateX(${inX})`;
-      void el.offsetWidth; // force reflow so the transition fires
+      el.style.transform  = `translateX(${inX})`;
+      void el.offsetWidth; // force reflow so the next transition fires
       el.style.transition = "transform 0.35s ease-out";
-      el.style.transform = "translateX(0)";
+      el.style.transform  = "translateX(0)";
 
-      this._lastTs = null;
-      this._rafId = requestAnimationFrame(this._tick);
+      this.#lastTs = null;
+      this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
 
-      this._slideTimer = setTimeout(() => {
+      this.#slideTimer = setTimeout(() => {
         el.style.transition = "";
-        this._sliding = false;
+        this.#sliding = false;
       }, 350);
     }, 300);
   }
 
-  _stopPlay() {
-    if (this._rafId) cancelAnimationFrame(this._rafId);
-    this._rafId = null;
+  #stopPlay() {
+    if (this.#rafId) cancelAnimationFrame(this.#rafId);
+    this.#rafId = null;
   }
 
-  _tick(ts) {
-    if (!this._lastTs) this._lastTs = ts;
-    const elapsed = ts - this._lastTs;
-    const frameDuration = 1000 / ErdtreeHScroll.FPS;
+  /** @param {DOMHighResTimeStamp} ts */
+  #tick(ts) {
+    if (!this.#lastTs) this.#lastTs = ts;
+    const elapsed       = ts - this.#lastTs;
+    const frameDuration = 1000 / ErdtreeHScroll.#FPS;
 
     if (elapsed >= frameDuration) {
-      const frames = Math.floor(elapsed / frameDuration);
-      this._lastTs = ts - (elapsed % frameDuration);
+      const frames  = Math.floor(elapsed / frameDuration);
+      this.#lastTs  = ts - (elapsed % frameDuration);
+      this.#frame   = Math.min(this.#frame + frames, this.#targetFrame);
+      this.#player.seek(this.#frame);
+      this.#checkChapterCues();
 
-      this._frame = Math.min(this._frame + frames, this._targetFrame);
-      this.player.seek(this._frame);
-      this._checkChapterCues();
-
-      if (this._frame >= this._targetFrame) {
-        if (this._sceneIdx >= SCENES.length - 1) {
-          // All scenes done — release page scroll
-          this._done = true;
+      if (this.#frame >= this.#targetFrame) {
+        if (this.#sceneIdx >= SCENES.length - 1) {
+          this.#done = true;
           document.body.style.overflow = "";
         }
-        this._rafId = null;
+        this.#rafId = null;
         return;
       }
     }
 
-    this._rafId = requestAnimationFrame(this._tick);
+    this.#rafId = requestAnimationFrame(ts => this.#tick(ts));
   }
 
-  _checkChapterCues() {
+  #checkChapterCues() {
     let chapterIdx = -1;
     for (let i = CHAPTER_CUES.length - 1; i >= 0; i--) {
-      if (this._frame >= CHAPTER_CUES[i].frame) {
-        chapterIdx = i;
-        break;
-      }
+      if (this.#frame >= CHAPTER_CUES[i].frame) { chapterIdx = i; break; }
     }
+    if (chapterIdx < 0 || chapterIdx === this.#chapter) return;
 
-    if (chapterIdx >= 0 && chapterIdx !== this.chapter) {
-      this.chapter = chapterIdx;
-      this.subtitle.innerHTML = CHAPTER_CUES[chapterIdx].text;
-      this.subtitle.classList.remove("visible");
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          this.subtitle.classList.add("visible");
-        }),
-      );
-      this.audio.playDialogueSequence(
-        CHAPTER_CUES[chapterIdx].audio,
-        CHAPTER_CUES[chapterIdx].loop || false,
-      );
-    }
+    this.#chapter = chapterIdx;
+    this.#subtitle.innerHTML = CHAPTER_CUES[chapterIdx].text;
+    this.#subtitle.classList.remove("visible");
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => this.#subtitle.classList.add("visible")),
+    );
+    this.#audio.playDialogueSequence(
+      CHAPTER_CUES[chapterIdx].audio,
+      CHAPTER_CUES[chapterIdx].loop,
+    );
   }
 }
 
@@ -623,89 +651,84 @@ class ErdtreeHScroll {
 ────────────────────────────────────────────────────── */
 
 class SideNav {
+  /** @type {HTMLElement} */         #nav;
+  /** @type {Element[]} */           #dots;
+  /** @type {(Element | null)[]} */  #targets;
+  /** @type {HTMLElement} */         #heroEl;
+
   constructor() {
-    this.nav = document.getElementById("sidenav");
-    this.dots = Array.from(this.nav.querySelectorAll(".nav-dot"));
-    this.targets = this.dots.map((d) =>
-      document.getElementById(d.dataset.target),
+    this.#nav     = /** @type {HTMLElement} */ (document.getElementById("sidenav"));
+    this.#heroEl  = /** @type {HTMLElement} */ (document.getElementById("hero"));
+    this.#dots    = Array.from(this.#nav.querySelectorAll(".nav-dot"));
+    this.#targets = this.#dots.map(d =>
+      document.getElementById(/** @type {HTMLElement} */ (d).dataset.target ?? ""),
     );
 
-    this.dots.forEach((dot, i) => {
+    this.#dots.forEach((dot, i) => {
       dot.addEventListener("click", () => {
-        this.targets[i]?.scrollIntoView({ behavior: "smooth", block: "start" });
+        this.#targets[i]?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     });
   }
 
+  /**
+   * @param {number} scrollY
+   * @param {number} vh
+   */
   update(scrollY, vh) {
-    const heroEl = document.getElementById("hero");
-    const heroEnd = heroEl.offsetTop + heroEl.offsetHeight;
-    this.nav.classList.toggle("visible", scrollY > heroEnd * 0.6);
+    const heroEnd = this.#heroEl.offsetTop + this.#heroEl.offsetHeight;
+    this.#nav.classList.toggle("visible", scrollY > heroEnd * 0.6);
 
     let active = 0;
-    for (let i = 0; i < this.targets.length; i++) {
-      const el = this.targets[i];
-      if (!el) continue;
-      if (scrollY >= el.offsetTop - vh * 0.45) active = i;
+    for (let i = 0; i < this.#targets.length; i++) {
+      const el = this.#targets[i];
+      if (el && scrollY >= el.offsetTop - vh * 0.45) active = i;
     }
-    this.dots.forEach((d, i) => d.classList.toggle("active", i === active));
+    this.#dots.forEach((d, i) => d.classList.toggle("active", i === active));
   }
 }
 
 /* ──────────────────────────────────────────────────────
    CHOICE MAP (Phase 3)
-   Shows dialog on Layer 6 click.
+   Listens for clicks on the roundtable <area> hotspot.
    "Yes" → fade to black → scroll to Erdtree sequence.
    "No"  → smooth scroll to footer.
 ────────────────────────────────────────────────────── */
 
 class ChoiceMap {
+  /** @type {HTMLElement} */        #fadeEl;
+  /** @type {AudioController} */    #audio;
+
+  /** @param {AudioController} audio */
   constructor(audio) {
-    this.dialog = document.getElementById("choice-map");
-    this.fadeEl = document.getElementById("fade-map");
-    this.hoverImg = document.getElementById("rt-hover");
-    this.glowImg = document.getElementById("rt-glow");
-    this.audio = audio;
+    this.#fadeEl = /** @type {HTMLElement} */ (document.getElementById("fade-map"));
+    this.#audio  = audio;
 
-    this.hoverImg.addEventListener("click", () => this._open());
-    this.dialog.addEventListener("close", () => this._onClose());
+    const zone    = document.getElementById("rt-zone-enia");
+    const eniaImg = document.getElementById("rt-img-enia");
+    let eniaActive = false;
+    zone?.addEventListener("mouseenter", () => eniaImg?.classList.add("rt-npc--glow"));
+    zone?.addEventListener("mouseleave", () => { if (!eniaActive) eniaImg?.classList.remove("rt-npc--glow"); });
+    zone?.addEventListener("click", () => {
+      eniaActive = true;
+      eniaImg?.classList.add("rt-npc--glow");
+      sceneZoom.zoomTo(78, 62);
+      this.#transitionToNarration();
+    });
   }
 
-  _open() {
-    this.hoverImg.style.opacity = "1";
-    this.dialog.showModal();
-  }
+  #transitionToNarration() {
+    // Cut all roundtable audio immediately — the black fade provides the bridge.
+    this.#audio.stopDialogue();
+    this.#audio.stopSfx();
+    this.#audio.stopBgmNow();
 
-  _onClose() {
-    this.hoverImg.style.removeProperty("opacity");
-    // Restore page scroll locked by RoundtableHold
-    document.body.style.overflow = "";
-    const answer = this.dialog.returnValue;
-    if (answer === "yes") {
-      this._transitionToNarration();
-    } else {
-      document
-        .getElementById("footer")
-        .scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }
-
-  _transitionToNarration() {
-    // Cut all roundtable audio immediately — the black map provides the transition.
-    this.audio.stopDialogue();
-    this.audio.stopSfx();
-    this.audio.stopBgmNow();
-
-    this.fadeEl.classList.add("active");
+    this.#fadeEl.classList.add("active");
     setTimeout(() => {
-      document
-        .getElementById("erdtree-scroll")
-        .scrollIntoView({ behavior: "instant", block: "start" });
-      // Start scroll music just as the map lifts so it's the first thing heard.
-      this.audio.startBgm("audio/music/scroll music.wav", 0.35);
-      setTimeout(() => {
-        this.fadeEl.classList.remove("active");
-      }, 50);
+      document.getElementById("erdtree-scroll")?.scrollIntoView({ behavior: "instant", block: "start" });
+      // Start scroll music just as the fade lifts so it is the first thing heard.
+      this.#audio.startBgm("audio/music/scroll music.wav", 0.35);
+      setTimeout(() => this.#fadeEl.classList.remove("active"), 50);
     }, 750);
   }
 }
@@ -713,137 +736,263 @@ class ChoiceMap {
 /* ──────────────────────────────────────────────────────
    ROUNDTABLE HOLD — wake-up sequence
    Triggers once when the section enters the viewport.
-   Snaps section into view and locks page scroll so it
-   stays fixed until the choice dialog is dismissed.
-   Plays BGM → sigh → my_oh_my in sequence.
+   Snaps into view and locks page scroll until the
+   choice dialog is dismissed.
+   Plays BGM → walking SFX → sigh → "my oh my".
 ────────────────────────────────────────────────────── */
 
 class RoundtableHold {
-  constructor(audio) {
-    this.section = document.getElementById("roundtable");
-    this.audio = audio;
-    this.awoken = false;
+  /** @type {HTMLElement} */      #section;
+  /** @type {AudioController} */  #audio;
+  #awoken = false;
 
-    // IntersectionObserver fires regardless of body scroll-lock state,
-    // making audio trigger reliable whether the user scrolls or uses the sidenav.
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!this.awoken && entry.intersectionRatio >= 0.4) {
-          this.awoken = true;
-          this.section.classList.add("rt-awake");
-          this.section.scrollIntoView({ behavior: "smooth", block: "start" });
-          setTimeout(() => {
-            document.body.style.overflow = "hidden";
-          }, 600);
-          this.audio.onUnlock(() => this._playAudio());
-        }
-      },
-      { threshold: [0, 0.4, 1.0] },
-    );
-    io.observe(this.section);
+  /** @param {AudioController} audio */
+  constructor(audio) {
+    this.#section = /** @type {HTMLElement} */ (document.getElementById("roundtable"));
+    this.#audio   = audio;
+
+    // IntersectionObserver fires regardless of body scroll-lock state, making
+    // the audio trigger reliable whether the user scrolls or uses the sidenav.
+    const io = new IntersectionObserver(([entry]) => {
+      if (!this.#awoken && entry.intersectionRatio >= 0.4) {
+        this.#awoken = true;
+        this.#section.classList.add("rt-awake");
+        this.#section.scrollIntoView({ behavior: "smooth", block: "start" });
+        setTimeout(() => { document.body.style.overflow = "hidden"; }, 600);
+        this.#audio.onUnlock(() => this.#playAudio());
+      }
+    }, { threshold: [0, 0.4, 1.0] });
+    io.observe(this.#section);
   }
 
-  _playAudio() {
-    this.audio.startBgm("audio/music/1-08 Roundtable Hold.mp3", 0.4);
-    this.audio.playSfxSimultaneous(
+  #playAudio() {
+    this.#audio.startBgm("audio/music/1-08 Roundtable Hold.mp3", 0.4);
+    this.#audio.playSfxSimultaneous(
       ["audio/sfx/walking.wav", "audio/sfx/Roundtable sfx.wav"],
       0.7,
     );
-    setTimeout(() => {
-      this.audio.playDialogueSequence([
-        "audio/dialogue/sigh.wav",
-        "audio/dialogue/my oh my.wav",
-      ]);
-    }, 800);
+  }
+}
+
+/* ──────────────────────────────────────────────────────
+   ROUNDTABLE NPC — hover glow + zoom-in + dialogue menu
+   with subtitle overlay and dialog fade.
+────────────────────────────────────────────────────── */
+
+/** Shared subtitle element (lazily resolved once). */
+const subtitle = {
+  /** @returns {{ el: HTMLElement, name: HTMLElement, text: HTMLElement } | null} */
+  get() {
+    const el   = document.getElementById("rt-subtitle");
+    const name = el?.querySelector(".rt-subtitle__name");
+    const text = el?.querySelector(".rt-subtitle__text");
+    return el && name && text
+      ? { el: /** @type {HTMLElement} */ (el), name: /** @type {HTMLElement} */ (name), text: /** @type {HTMLElement} */ (text) }
+      : null;
+  },
+  /** @param {string} npcName @param {string} line */
+  show(npcName, line) {
+    const s = this.get();
+    if (!s) return;
+    s.name.textContent = npcName;
+    s.text.textContent = line;
+    s.el.classList.add("rt-subtitle--visible");
+  },
+  hide() {
+    this.get()?.el.classList.remove("rt-subtitle--visible");
+  },
+};
+
+/** Zooms the rt-layers element toward a given point. */
+const sceneZoom = {
+  /** @param {number} ox @param {number} oy @param {number} scale */
+  zoomTo(ox, oy, scale = 1.55) {
+    const layers = /** @type {HTMLElement | null} */ (document.querySelector(".rt-layers"));
+    if (!layers) return;
+    layers.style.transformOrigin = `${ox}% ${oy}%`;
+    layers.style.transform = `scale(${scale})`;
+  },
+  zoomOut() {
+    const layers = /** @type {HTMLElement | null} */ (document.querySelector(".rt-layers"));
+    if (!layers) return;
+    layers.style.transform = "scale(1)";
+  },
+};
+
+class RoundtableNPC {
+  /** @type {AudioController} */ #audio;
+  /** @type {string} */          #name;
+
+  /**
+   * @param {string}          zoneId   — id of invisible zone <button>
+   * @param {string}          imgId    — id of character <img>
+   * @param {string}          dialogId — id of <dialog>
+   * @param {AudioController} audio
+   * @param {string}          npcName  — display name for subtitles
+   * @param {number}          zoomX    — transform-origin X % toward this NPC
+   * @param {number}          zoomY    — transform-origin Y %
+   */
+  constructor(zoneId, imgId, dialogId, audio, npcName, zoomX, zoomY) {
+    this.#audio = audio;
+    this.#name  = npcName;
+
+    const zone   = document.getElementById(zoneId);
+    const img    = document.getElementById(imgId);
+    const dialog = /** @type {HTMLDialogElement} */ (document.getElementById(dialogId));
+    if (!zone || !img || !dialog) return;
+
+    let active = false;
+    zone.addEventListener("mouseenter", () => img.classList.add("rt-npc--glow"));
+    zone.addEventListener("mouseleave", () => { if (!active) img.classList.remove("rt-npc--glow"); });
+
+    zone.addEventListener("click", () => {
+      active = true;
+      img.classList.add("rt-npc--glow");
+      sceneZoom.zoomTo(zoomX, zoomY);
+      dialog.showModal();
+    });
+
+    dialog.querySelectorAll(".npc-topic-btn[data-audio]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.preventDefault();
+        const srcs = (/** @type {HTMLElement} */ (btn).dataset.audio ?? "").split(",").map(s => s.trim()).filter(Boolean);
+        const line = /** @type {HTMLElement} */ (btn).dataset.subtitle ?? btn.textContent?.trim() ?? "";
+        this.#playTopic(dialog, srcs, line);
+      });
+    });
+
+    dialog.querySelectorAll(".npc-topic-btn--leave").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.preventDefault();
+        active = false;
+        img.classList.remove("rt-npc--glow");
+        sceneZoom.zoomOut();
+        dialog.close();
+      });
+    });
   }
 
-  // Called from EldenRingApp._update() — kept for sidenav active-dot tracking.
-  tryAwaken() {}
+  /**
+   * Fades out the dialog, shows subtitle, plays audio sequence, then restores.
+   * Clicking anywhere while audio plays skips it and restores the dialog.
+   * @param {HTMLDialogElement} dialog
+   * @param {string[]} srcs
+   * @param {string} line
+   */
+  #playTopic(dialog, srcs, line) {
+    dialog.classList.add("npc-dialog--faded");
+
+    let done = false;
+    const restore = () => {
+      if (done) return;
+      done = true;
+      document.removeEventListener("click", onSkip, true);
+      subtitle.hide();
+      setTimeout(() => dialog.classList.remove("npc-dialog--faded"), 300);
+    };
+    const onSkip = () => {
+      this.#audio.stopDialogue();
+      restore();
+    };
+
+    setTimeout(() => {
+      subtitle.show(this.#name, line);
+      this.#audio.playDialogueLine(srcs, restore);
+      // Delay so the click that opened this topic isn't caught as a skip
+      setTimeout(() => document.addEventListener("click", onSkip, { capture: true, once: true }), 200);
+    }, 370);
+  }
 }
 
 /* ──────────────────────────────────────────────────────
    GRACE EMBERS — golden mote particle system
 ────────────────────────────────────────────────────── */
 
+/**
+ * @typedef {{ x: number, y: number, size: number, vy: number,
+ *   driftAmp: number, driftFreq: number, driftPhase: number,
+ *   alpha: number, maxAlpha: number, fadeDir: number, fadeSpeed: number }} Particle
+ */
+
 class GraceEmbers {
-  static MAX = 40;
+  static #MAX = 40;
 
+  /** @type {HTMLCanvasElement} */        #canvas;
+  /** @type {CanvasRenderingContext2D} */ #ctx;
+  #W = 0;
+  #H = 0;
+  /** @type {Particle[]} */ #particles = [];
+  #lastTs = 0;
+
+  /** @param {HTMLCanvasElement} canvasEl */
   constructor(canvasEl) {
-    this._canvas = canvasEl;
-    this._ctx = canvasEl.getContext("2d");
-    this._W = 0;
-    this._H = 0;
-    this._particles = [];
-    this._lastTs = 0;
+    this.#canvas = canvasEl;
+    this.#ctx    = /** @type {CanvasRenderingContext2D} */ (canvasEl.getContext("2d"));
+    this.#resize();
+    window.addEventListener("resize", () => this.#resize(), { passive: true });
 
-    this._resize();
-    window.addEventListener("resize", () => this._resize(), { passive: true });
-
-    for (let i = 0; i < GraceEmbers.MAX; i++) {
-      this._particles.push(this._newParticle(true));
+    for (let i = 0; i < GraceEmbers.#MAX; i++) {
+      this.#particles.push(this.#newParticle(true));
     }
-
-    requestAnimationFrame((ts) => this._tick(ts));
+    requestAnimationFrame(ts => this.#tick(ts));
   }
 
-  _resize() {
-    const rect = this._canvas.parentElement.getBoundingClientRect();
-    this._W = this._canvas.width = Math.round(rect.width) || window.innerWidth;
-    this._H = this._canvas.height =
-      Math.round(rect.height) || window.innerHeight;
+  #resize() {
+    const rect  = this.#canvas.parentElement?.getBoundingClientRect();
+    this.#W = this.#canvas.width  = Math.round(rect?.width  ?? 0) || window.innerWidth;
+    this.#H = this.#canvas.height = Math.round(rect?.height ?? 0) || window.innerHeight;
   }
 
-  _newParticle(distributed = false) {
+  /**
+   * @param {boolean} [distributed=false]
+   * @returns {Particle}
+   */
+  #newParticle(distributed = false) {
     const size = 1.2 + Math.random() * 2.5;
     return {
-      x: Math.random() * this._W,
-      y: distributed ? Math.random() * this._H : this._H + size * 6,
+      x:          Math.random() * this.#W,
+      y:          distributed ? Math.random() * this.#H : this.#H + size * 6,
       size,
-      vy: 16 + Math.random() * 30,
-      driftAmp: 10 + Math.random() * 20,
-      driftFreq: 0.2 + Math.random() * 0.5,
+      vy:         16 + Math.random() * 30,
+      driftAmp:   10 + Math.random() * 20,
+      driftFreq:  0.2 + Math.random() * 0.5,
       driftPhase: Math.random() * Math.PI * 2,
-      alpha: distributed ? Math.random() * 0.45 : 0,
-      maxAlpha: 0.3 + Math.random() * 0.4,
-      fadeDir: distributed && Math.random() > 0.5 ? -1 : 1,
-      fadeSpeed: 0.2 + Math.random() * 0.3,
+      alpha:      distributed ? Math.random() * 0.45 : 0,
+      maxAlpha:   0.3 + Math.random() * 0.4,
+      fadeDir:    distributed && Math.random() > 0.5 ? -1 : 1,
+      fadeSpeed:  0.2 + Math.random() * 0.3,
     };
   }
 
-  _tick(ts) {
-    requestAnimationFrame((ts) => this._tick(ts));
-    const dt = Math.min((ts - this._lastTs) / 1000, 0.1);
-    this._lastTs = ts;
+  /** @param {DOMHighResTimeStamp} ts */
+  #tick(ts) {
+    requestAnimationFrame(ts => this.#tick(ts));
+    const dt = Math.min((ts - this.#lastTs) / 1000, 0.1);
+    this.#lastTs = ts;
     const t = ts * 0.001;
 
-    const ctx = this._ctx;
-    ctx.clearRect(0, 0, this._W, this._H);
+    const ctx = this.#ctx;
+    ctx.clearRect(0, 0, this.#W, this.#H);
 
-    if (this._particles.length < GraceEmbers.MAX && Math.random() < dt * 4) {
-      this._particles.push(this._newParticle(false));
+    if (this.#particles.length < GraceEmbers.#MAX && Math.random() < dt * 4) {
+      this.#particles.push(this.#newParticle(false));
     }
 
-    this._particles = this._particles.filter((p) => {
+    this.#particles = this.#particles.filter(p => {
       p.y -= p.vy * dt;
-      p.x +=
-        Math.sin(t * p.driftFreq * Math.PI * 2 + p.driftPhase) *
-        p.driftAmp *
-        dt;
+      p.x += Math.sin(t * p.driftFreq * Math.PI * 2 + p.driftPhase) * p.driftAmp * dt;
 
       p.alpha += p.fadeSpeed * p.fadeDir * dt;
-      if (p.alpha >= p.maxAlpha) {
-        p.alpha = p.maxAlpha;
-        p.fadeDir = -1;
-      }
+      if (p.alpha >= p.maxAlpha) { p.alpha = p.maxAlpha; p.fadeDir = -1; }
       if (p.alpha <= 0 && p.fadeDir < 0) return false;
       p.alpha = Math.max(0, p.alpha);
       if (p.y < -p.size * 8) return false;
 
-      const r = p.size * 5;
+      const r   = p.size * 5;
       const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-      grd.addColorStop(0, `rgba(255, 225, 120, ${p.alpha})`);
+      grd.addColorStop(0,   `rgba(255, 225, 120, ${p.alpha})`);
       grd.addColorStop(0.3, `rgba(212, 165,  40, ${p.alpha * 0.65})`);
-      grd.addColorStop(1, `rgba(160, 100,  10, 0)`);
+      grd.addColorStop(1,   `rgba(160, 100,  10, 0)`);
       ctx.beginPath();
       ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
       ctx.fillStyle = grd;
@@ -864,59 +1013,65 @@ class GraceEmbers {
 ────────────────────────────────────────────────────── */
 
 class EldenRingApp {
+  /** @type {AudioController} */  #audio;
+  /** @type {SideNav} */          #sidenav;
+  /** @type {ErdtreeHScroll} */   #erdtree;
+  /** @type {Element[]} */        #fadeEls;
+  /** @type {HTMLElement} */      #volumeNotice;
+  /** @type {HTMLElement} */      #scrollCta;
+  /** @type {HTMLElement} */      #heroEl;
+  #ticking = false;
+
   constructor() {
-    this.audio = new AudioController();
-    this.sidenav = new SideNav();
-    this.roundtable = new RoundtableHold(this.audio);
-    this.choice = new ChoiceMap(this.audio);
-    this.erdtree = new ErdtreeHScroll(this.audio);
-    document
-      .querySelectorAll(".grace-embers")
-      .forEach((c) => new GraceEmbers(c));
+    this.#audio   = new AudioController();
+    this.#sidenav = new SideNav();
 
-    this.fadeEls = Array.from(document.querySelectorAll(".fade-in"));
-    this.volumeNotice = document.querySelector(".volume-notice");
-    this.scrollCta = document.querySelector(".scroll-cta");
-    this._heroEl = document.getElementById("hero");
+    new RoundtableHold(this.#audio);
+    new ChoiceMap(this.#audio);
 
-    this._ticking = false;
-    window.addEventListener("scroll", () => this._scheduleUpdate(), {
-      passive: true,
-    });
-    window.addEventListener("resize", () => this._update(), { passive: true });
-    this._update();
+    //                  zone              img               dialog               audio          name                          zoomX  zoomY
+    new RoundtableNPC("rt-zone-d",      "rt-img-d",      "npc-dialog-d",      this.#audio, "D, Hunter of the Dead",         22,    68);
+    new RoundtableNPC("rt-zone-gideon", "rt-img-gideon", "npc-dialog-gideon", this.#audio, "Gideon Ofnir, the All-Knowing", 14,    68);
+    new RoundtableNPC("rt-zone-rogier", "rt-img-rogier", "npc-dialog-rogier", this.#audio, "Sorcerer Rogier",               65,    68);
+
+    this.#erdtree = new ErdtreeHScroll(this.#audio);
+
+    document.querySelectorAll(".grace-embers").forEach(c =>
+      new GraceEmbers(/** @type {HTMLCanvasElement} */ (c)),
+    );
+
+    this.#fadeEls      = Array.from(document.querySelectorAll(".fade-in"));
+    this.#volumeNotice = /** @type {HTMLElement} */ (document.querySelector(".volume-notice"));
+    this.#scrollCta    = /** @type {HTMLElement} */ (document.querySelector(".scroll-cta"));
+    this.#heroEl       = /** @type {HTMLElement} */ (document.getElementById("hero"));
+
+    window.addEventListener("scroll", () => this.#scheduleUpdate(), { passive: true });
+    window.addEventListener("resize", () => this.#update(), { passive: true });
+    this.#update();
   }
 
-  _scheduleUpdate() {
-    if (!this._ticking) {
-      requestAnimationFrame(() => {
-        this._update();
-        this._ticking = false;
-      });
-      this._ticking = true;
-    }
+  #scheduleUpdate() {
+    if (this.#ticking) return;
+    this.#ticking = true;
+    requestAnimationFrame(() => { this.#update(); this.#ticking = false; });
   }
 
-  _update() {
-    const scrollY = window.scrollY;
-    const vh = window.innerHeight;
+  #update() {
+    const scrollY  = window.scrollY;
+    const vh       = window.innerHeight;
+    const heroDone = scrollY > this.#heroEl.offsetHeight * 0.5;
 
-    // Fade out hero prompts once the user has scrolled past the hero section
-    const heroFadeThreshold = this._heroEl.offsetHeight * 0.5;
-    const heroDone = scrollY > heroFadeThreshold;
-    this.volumeNotice.classList.toggle("hero-prompt--hidden", heroDone);
-    this.scrollCta.classList.toggle("hero-prompt--hidden", heroDone);
-
-    this.sidenav.update(scrollY, vh);
-    this.roundtable.tryAwaken(scrollY, vh);
-    this._updateFadeIns(vh);
+    this.#volumeNotice.classList.toggle("hero-prompt--hidden", heroDone);
+    this.#scrollCta.classList.toggle("hero-prompt--hidden",    heroDone);
+    this.#sidenav.update(scrollY, vh);
+    this.#updateFadeIns(vh);
   }
 
-  _updateFadeIns(vh) {
-    for (const el of this.fadeEls) {
-      if (!el.classList.contains("visible")) {
-        const rect = el.getBoundingClientRect();
-        if (rect.top < vh * 0.88) el.classList.add("visible");
+  /** @param {number} vh */
+  #updateFadeIns(vh) {
+    for (const el of this.#fadeEls) {
+      if (!el.classList.contains("visible") && el.getBoundingClientRect().top < vh * 0.88) {
+        el.classList.add("visible");
       }
     }
   }
@@ -924,4 +1079,4 @@ class EldenRingApp {
 
 /* ── Boot ──────────────────────────────────────────── */
 
-window.app = new EldenRingApp();
+new EldenRingApp();

@@ -10,19 +10,49 @@
       src="images/0_elden_ring_roundtable_hold_background.png"
       alt=""
     />
-    <img
-      src="images/1_elden_ring_roundtable_hold_crone.png"
-      alt=""
-      aria-hidden="true"
-      class="rt-layer rt-layer--hover"
-      usemap="#map_crone"
-    />
-    <map name="map_crone">
-      <area shape="rect" coords="500, 100,1000, 1000" id="rt-hover" alt="" />
-    </map>
+
+    <!-- NPC character layers -->
+    <img id="rt-img-d"      class="rt-layer rt-layer--npc" src="images/2_elden_ring_roundtable_hold_D.png"      alt="" />
+    <img id="rt-img-gideon" class="rt-layer rt-layer--npc" src="images/3_elden_ring_roundtable_hold_Gideon.png" alt="" />
+    <img id="rt-img-rogier" class="rt-layer rt-layer--npc" src="images/4_elden_ring_roundtable_hold_rogier.png" alt="" />
+    <img id="rt-img-enia"   class="rt-layer rt-layer--npc" src="images/1_elden_ring_roundtable_hold_crone.png"  alt="" />
+
+    <!-- Table foreground layer — in front of all characters, passes clicks through -->
+    <img class="rt-layer rt-layer--base rt-layer--no-events" src="images/5_elden_ring_roundtable_hold_Table.png" alt="" />
+
+    <!-- Invisible click/hover zones positioned over each character -->
+    <button class="rt-npc-zone" id="rt-zone-gideon"
+      style="left:5%;  top:49%; width:10%; height:43%;"
+      aria-label="Speak with Gideon Ofnir"
+      aria-haspopup="dialog"
+    ></button>
+    <button class="rt-npc-zone" id="rt-zone-d"
+      style="left:13%; top:49%; width:19%; height:40%;"
+      aria-label="Speak with D, Hunter of the Dead"
+      aria-haspopup="dialog"
+    ></button>
+    <!-- Rogier stops at 71% so he doesn't overlap Enia -->
+    <button class="rt-npc-zone" id="rt-zone-rogier"
+      style="left:58%; top:49%; width:13%; height:38%;"
+      aria-label="Speak with Sorcerer Rogier"
+      aria-haspopup="dialog"
+    ></button>
+    <!-- Enia starts at 71% to the right of Rogier -->
+    <button class="rt-npc-zone" id="rt-zone-enia"
+      style="left:71%; top:34%; width:25%; height:66%;"
+      aria-label="Speak with Enia"
+      aria-haspopup="dialog"
+    ></button>
   </div>
+
   <div class="rt-vignette" aria-hidden="true"></div>
   <div class="rt-hint">
     <span>Approach</span>
+  </div>
+
+  <!-- Subtitle overlay — shown during NPC dialogue -->
+  <div id="rt-subtitle" class="rt-subtitle" aria-live="polite" aria-atomic="true">
+    <span class="rt-subtitle__name"></span>
+    <p class="rt-subtitle__text"></p>
   </div>
 </section>

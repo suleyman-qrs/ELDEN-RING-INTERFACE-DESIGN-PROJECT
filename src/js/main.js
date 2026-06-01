@@ -663,20 +663,25 @@ class ErdtreeHScroll {
     window.addEventListener("wheel", e => {
       if (!this.#active) return;
 
-      // Respond only to primarily-horizontal scroll (trackpad left/right swipe).
-      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      // Accept whichever axis is dominant.
+      // deltaX lets trackpad left/right swipe work; deltaY is the reliable fallback
+      // (Safari intercepts horizontal swipes for history before they reach wheel).
+      const absX = Math.abs(e.deltaX);
+      const absY = Math.abs(e.deltaY);
+      const delta = absX > absY ? e.deltaX : e.deltaY;
+      if (Math.abs(delta) < 5) return;   // ignore tiny/accidental events
 
-      const goingRight = e.deltaX > 0;
+      const goingForward = delta > 0;
 
       if (this.#rafId || this.#sliding) { e.preventDefault(); return; }
-      if (goingRight && this.#done) return;
-      if (!goingRight && this.#sceneIdx <= 0) {
+      if (goingForward && this.#done) return;
+      if (!goingForward && this.#sceneIdx <= 0) {
         document.body.style.overflow = "";
         return;
       }
 
       e.preventDefault();
-      this.#goToScene(this.#sceneIdx + (goingRight ? 1 : -1));
+      this.#goToScene(this.#sceneIdx + (goingForward ? 1 : -1));
     }, { passive: false });
   }
 

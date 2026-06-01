@@ -1235,7 +1235,7 @@ body {
 
 .sidenav {
   position: fixed;
-  right: 36px;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
   z-index: 300;
@@ -1253,65 +1253,95 @@ body {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 4px;
 }
 
+/* Each nav item is a full-width flex row: [label] [diamond] */
 .nav-dot {
   position: relative;
-  display: block;
-  width: 4px;
-  height: 4px;
-  border-radius: 0;              /* square — Elden Ring uses square markers */
-  background: rgba(200, 164, 52, 0.22);
-  border: 1px solid rgba(200, 164, 52, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 10px 28px 10px 24px;
+  background: transparent;
+  border: none;
   cursor: pointer;
-  padding: 0;
-  transform: rotate(45deg);     /* diamond orientation */
-  transition:
-    background 0.3s,
-    transform 0.3s,
-    box-shadow 0.3s,
-    border-color 0.3s;
+  /* Subtle pop on hover */
+  transition: transform 0.2s ease;
 }
 
-.nav-dot::before {
+.nav-dot:hover {
+  transform: translateX(-4px);
+}
+
+/* Diamond mark — the visible indicator on the right edge */
+.nav-dot::after {
   content: "";
-  position: absolute;
-  inset: -12px;
-  transform: rotate(-45deg);    /* keep hit-area axis-aligned */
+  display: block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  background: rgba(200, 164, 52, 0.2);
+  border: 1px solid rgba(200, 164, 52, 0.45);
+  transform: rotate(45deg);
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
 }
 
-.nav-dot.active {
+.nav-dot:hover::after {
+  background: rgba(200, 164, 52, 0.5);
+  border-color: rgba(200, 164, 52, 0.75);
+  transform: rotate(45deg) scale(1.35);
+}
+
+.nav-dot.active::after {
   background: var(--gold);
   border-color: var(--gold-bright);
-  box-shadow: 0 0 10px rgba(180, 148, 40, 0.9), 0 0 4px rgba(224, 186, 60, 0.7);
+  box-shadow: 0 0 14px rgba(180, 148, 40, 0.9), 0 0 4px rgba(224, 186, 60, 0.6);
   transform: rotate(45deg) scale(1.8);
 }
 
+/* Label — hidden by default, slides in from the right on hover */
 .nav-label {
-  position: absolute;
-  right: calc(100% + 18px);
-  top: 50%;
-  transform: translateY(-50%) rotate(-45deg);  /* counteract parent rotation */
-  font-family: var(--font-serif);
-  font-size: 11px;
-  letter-spacing: 0.14em;
+  font-family: var(--font-sans);
+  font-size: clamp(9px, 0.72vw, 11px);
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: var(--cream);
+  color: rgba(240, 226, 192, 0.6);
   opacity: 0;
+  transform: translateX(16px);
+  transition:
+    opacity   0.25s ease,
+    transform 0.25s ease,
+    color     0.25s ease;
   pointer-events: none;
-  transition: opacity 0.2s ease;
 }
 
+/* Slide label in when hovering the list item */
 .sidenav-list li:hover .nav-label {
-  opacity: 0.5;
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--cream);
 }
 
-.sidenav-list li:has(.nav-dot.active) .nav-label {
-  opacity: 0.8;
+/* Active item — label stays visible at lower opacity */
+.nav-dot.active .nav-label {
+  opacity: 0.75;
+  transform: translateX(0);
   color: var(--gold);
 }
+
+/* Stagger the slide-in for each label per item (Elden Ring menu feel) */
+.sidenav-list li:nth-child(1):hover .nav-label { transition-delay: 0ms;   }
+.sidenav-list li:nth-child(2):hover .nav-label { transition-delay: 20ms;  }
+.sidenav-list li:nth-child(3):hover .nav-label { transition-delay: 40ms;  }
+.sidenav-list li:nth-child(4):hover .nav-label { transition-delay: 60ms;  }
+.sidenav-list li:nth-child(5):hover .nav-label { transition-delay: 80ms;  }
 
 /* ======================================================
    GLOBAL FADE MAP
@@ -1337,11 +1367,12 @@ body {
    ====================================================== */
 
 @media (max-width: 768px) {
-  .sidenav {
-    right: 14px;
-  }
   .nav-label {
     display: none;
+  }
+
+  .nav-dot {
+    padding: 10px 16px 10px 12px;
   }
 
   .about-body {

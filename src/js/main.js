@@ -727,6 +727,14 @@ class ChoiceMap {
     const eniaImg = document.getElementById("rt-img-enia");
     let eniaActive = false;
 
+    /** Shared cleanup for Leave and Escape. */
+    const closeDialog = () => {
+      eniaActive = false;
+      eniaImg?.classList.remove("rt-npc--glow");
+      sceneZoom.zoomOut();
+      this.#dialog.close();
+    };
+
     zone?.addEventListener("mouseenter", () => eniaImg?.classList.add("rt-npc--glow"));
     zone?.addEventListener("mouseleave", () => { if (!eniaActive) eniaImg?.classList.remove("rt-npc--glow"); });
     zone?.addEventListener("click", () => {
@@ -734,6 +742,8 @@ class ChoiceMap {
       eniaImg?.classList.add("rt-npc--glow");
       sceneZoom.zoomTo(78, 62);
       this.#dialog.showModal();
+      // Focus first option so Enter immediately works
+      /** @type {HTMLElement | null} */ (this.#dialog.querySelector(".npc-topic-btn"))?.focus();
     });
 
     // Audio topic buttons — fade dialog, show subtitle, play, restore
@@ -756,14 +766,14 @@ class ChoiceMap {
       this.#transitionToNarration();
     });
 
-    // Leave
+    // Leave button
     this.#dialog.querySelector(".npc-topic-btn--leave")?.addEventListener("click", e => {
       e.preventDefault();
-      eniaActive = false;
-      eniaImg?.classList.remove("rt-npc--glow");
-      sceneZoom.zoomOut();
-      this.#dialog.close();
+      closeDialog();
     });
+
+    // Escape key: browser fires 'cancel' before closing — run our cleanup
+    this.#dialog.addEventListener("cancel", () => closeDialog());
   }
 
   /**
@@ -960,6 +970,14 @@ class RoundtableNPC {
       return;
     }
 
+    /** Close the dialog and run all cleanup. */
+    const closeDialog = () => {
+      active = false;
+      img.classList.remove("rt-npc--glow");
+      sceneZoom.zoomOut();
+      dialog.close();
+    };
+
     let active = false;
     zone.addEventListener("mouseenter", () => img.classList.add("rt-npc--glow"));
     zone.addEventListener("mouseleave", () => { if (!active) img.classList.remove("rt-npc--glow"); });
@@ -969,6 +987,8 @@ class RoundtableNPC {
       img.classList.add("rt-npc--glow");
       sceneZoom.zoomTo(zoomX, zoomY);
       dialog.showModal();
+      // Focus first option so Enter immediately works
+      /** @type {HTMLElement | null} */ (dialog.querySelector(".npc-topic-btn"))?.focus();
     });
 
     dialog.querySelectorAll(".npc-topic-btn[data-audio]").forEach(btn => {
@@ -983,12 +1003,12 @@ class RoundtableNPC {
     dialog.querySelectorAll(".npc-topic-btn--leave").forEach(btn => {
       btn.addEventListener("click", e => {
         e.preventDefault();
-        active = false;
-        img.classList.remove("rt-npc--glow");
-        sceneZoom.zoomOut();
-        dialog.close();
+        closeDialog();
       });
     });
+
+    // Escape key: browser fires 'cancel' before closing — run our cleanup
+    dialog.addEventListener("cancel", () => closeDialog());
   }
 
   /**

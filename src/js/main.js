@@ -34,10 +34,15 @@ class AudioController {
   /** @type {HTMLAudioElement | null} */ #bgm = null;
   /** @type {HTMLAudioElement | null} */ #dialogue = null;
   /** @type {HTMLAudioElement[]} */      #sfxList = [];
-  #unlocked = false;
-  #pendingBgm = false;
+  #unlocked    = false;
+  #pendingBgm  = false;
   #dialogueGen = 0;
   /** @type {Array<() => void>} */       #unlockCallbacks = [];
+
+  // Per-category enable flags — toggled by SoundControl.
+  #bgmEnabled      = true;
+  #dialogueEnabled = true;
+  #sfxEnabled      = true;
 
   constructor() {
     const unlock = () => {
@@ -77,6 +82,7 @@ class AudioController {
     this.#bgm.volume = volume;
     this.#bgm.preload = "auto";
     this.#bgm.load();
+    if (!this.#bgmEnabled) return;
     if (this.#unlocked) {
       this.#tryPlay(this.#bgm);
     } else {
@@ -126,7 +132,7 @@ class AudioController {
    * @param {number} [volume=1]
    */
   playSfxSimultaneous(srcs, volume = 1) {
-    if (!this.#unlocked || !srcs.length) return;
+    if (!this.#sfxEnabled || !this.#unlocked || !srcs.length) return;
     for (const src of srcs) {
       const sfx = new Audio(src);
       sfx.volume = volume;
@@ -150,7 +156,7 @@ class AudioController {
    * @param {number} [volume=1]
    */
   playSfxSequence(srcs, volume = 1) {
-    if (!this.#unlocked || !srcs.length) return;
+    if (!this.#sfxEnabled || !this.#unlocked || !srcs.length) return;
     const [first, ...rest] = srcs;
     const sfx = new Audio(first);
     sfx.volume = volume;
@@ -170,7 +176,7 @@ class AudioController {
   playDialogueSequence(srcs, loop = false, _root = srcs) {
     this.#dialogue?.pause();
     this.#dialogue = null;
-    if (!this.#unlocked || !srcs.length) return;
+    if (!this.#dialogueEnabled || !this.#unlocked || !srcs.length) return;
 
     const gen = ++this.#dialogueGen;
     const [first, ...rest] = srcs;
@@ -196,7 +202,7 @@ class AudioController {
   playDialogueLine(srcs, onEnd) {
     this.#dialogue?.pause();
     this.#dialogue = null;
-    if (!this.#unlocked || !srcs.length) { onEnd?.(); return; }
+    if (!this.#dialogueEnabled || !this.#unlocked || !srcs.length) { onEnd?.(); return; }
 
     // Capture current generation; stopDialogue increments it, invalidating callbacks.
     const gen = ++this.#dialogueGen;
@@ -233,6 +239,42 @@ class AudioController {
   onUnlock(cb) {
     if (this.#unlocked) cb();
     else this.#unlockCallbacks.push(cb);
+  }
+
+  /** True when a BGM track is loaded (playing or paused). */
+  get hasBgm() { return this.#bgm !== null; }
+
+  /**
+   * Enable or disable background music.
+   * Disabling pauses the current track; enabling resumes it if one is loaded.
+   * @param {boolean} on
+   */
+  setBgmEnabled(on) {
+    this.#bgmEnabled = on;
+    if (!on) {
+      this.#bgm?.pause();
+    } else if (this.#bgm) {
+      if (this.#unlocked) this.#tryPlay(this.#bgm);
+      else this.#pendingBgm = true;
+    }
+  }
+
+  /**
+   * Enable or disable dialogue audio. Disabling stops any current line.
+   * @param {boolean} on
+   */
+  setDialogueEnabled(on) {
+    this.#dialogueEnabled = on;
+    if (!on) this.stopDialogue();
+  }
+
+  /**
+   * Enable or disable SFX. Disabling stops all active SFX immediately.
+   * @param {boolean} on
+   */
+  setSfxEnabled(on) {
+    this.#sfxEnabled = on;
+    if (!on) this.stopSfx();
   }
 }
 
@@ -1333,6 +1375,40 @@ class GraceEmbers {
 }
 
 /* ──────────────────────────────────────────────────────
+   SOUND CONTROL
+   Fixed panel with per-category toggles (Music / Dialogue
+   / SFX). Wires HTML checkboxes to AudioController flags.
+   Turning Music on also starts the Roundtable Hold track
+   as ambient background music if nothing is playing yet.
+────────────────────────────────────────────────────── */
+
+class SoundControl {
+  /** @param {AudioController} audio */
+  constructor(audio) {
+    const bgmToggle       = /** @type {HTMLInputElement|null} */ (document.getElementById("toggle-bgm"));
+    const dialogueToggle  = /** @type {HTMLInputElement|null} */ (document.getElementById("toggle-dialogue"));
+    const sfxToggle       = /** @type {HTMLInputElement|null} */ (document.getElementById("toggle-sfx"));
+
+    bgmToggle?.addEventListener("change", () => {
+      const on = bgmToggle.checked;
+      audio.setBgmEnabled(on);
+      // Start roundtable ambience when music is turned on and nothing is loaded yet.
+      if (on && !audio.hasBgm) {
+        audio.startBgm("audio/music/1-08 Roundtable Hold.mp3", 0.4);
+      }
+    });
+
+    dialogueToggle?.addEventListener("change", () => {
+      audio.setDialogueEnabled(dialogueToggle.checked);
+    });
+
+    sfxToggle?.addEventListener("change", () => {
+      audio.setSfxEnabled(sfxToggle.checked);
+    });
+  }
+}
+
+/* ──────────────────────────────────────────────────────
    MAIN APP ORCHESTRATOR
 ────────────────────────────────────────────────────── */
 
@@ -1352,7 +1428,7 @@ class EldenRingApp {
 
     new RoundtableHold(this.#audio);
     new ChoiceMap(this.#audio);
-    new RoundtableParallax();
+    new SoundControl(this.#audio);
 
     /** @type {readonly NpcConfig[]} */
     const NPC_CONFIGS = Object.freeze([

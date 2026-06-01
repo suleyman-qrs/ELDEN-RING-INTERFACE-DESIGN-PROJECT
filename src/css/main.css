@@ -1134,6 +1134,84 @@ body {
    SIDE NAVIGATION
    ====================================================== */
 
+/* ======================================================
+   AUDIO CONTROLS
+   Fixed bottom-left panel — Music / Dialogue / SFX
+   ====================================================== */
+
+.audio-controls {
+  position: fixed;
+  bottom: 36px;
+  left: 36px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.audio-controls__title {
+  font-family: var(--font-sans);
+  font-size: clamp(9px, 0.7vw, 11px);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+.audio-ctrl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Hide the native checkbox */
+.audio-ctrl-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Diamond mark — mirrors .nav-dot style */
+.audio-ctrl-mark {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border: 1px solid rgba(200, 164, 52, 0.35);
+  background: transparent;
+  transform: rotate(45deg);
+  transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.audio-ctrl-input:checked + .audio-ctrl-mark {
+  background: var(--gold);
+  border-color: var(--gold);
+  box-shadow: 0 0 8px rgba(180, 148, 40, 0.7);
+}
+
+.audio-ctrl-label {
+  font-family: var(--font-sans);
+  font-size: clamp(10px, 0.75vw, 12px);
+  letter-spacing: 0.1em;
+  color: rgba(240, 226, 192, 0.5);
+  transition: color 0.2s ease;
+}
+
+.audio-ctrl-row:hover .audio-ctrl-label {
+  color: var(--cream);
+}
+
+.audio-ctrl-input:checked ~ .audio-ctrl-label {
+  color: rgba(240, 226, 192, 0.75);
+}
+
+/* ====================================================== */
+
 .sidenav {
   position: fixed;
   right: 36px;

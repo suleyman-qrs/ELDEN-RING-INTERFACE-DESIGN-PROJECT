@@ -23,6 +23,16 @@ const DIALOGUE_TIMING = Object.freeze({
   SKIP_ARM:         200,
 });
 
+/** Timing constants for the Erdtree scene transition animation (ms). */
+const TRANSITION_TIMING = Object.freeze({
+  /** Scroll-momentum lock for overlay scenes. */
+  OVERLAY_SLIDE_LOCK: 600,
+  /** Canvas slide-out duration before seeking to new scene. */
+  CANVAS_SLIDE_OUT:   300,
+  /** Canvas slide-in duration after seeking to new scene. */
+  CANVAS_SLIDE_IN:    350,
+});
+
 /* ──────────────────────────────────────────────────────
    AUDIO CONTROLLER
    Handles BGM, sequential SFX, and non-overlapping
@@ -524,6 +534,19 @@ const CHAPTER_CUES = (() => {
   return Object.freeze(cues);
 })();
 
+/**
+ * Returns the dominant-axis wheel delta (X or Y, whichever is larger).
+ * Returns 0 if the movement is too small to be intentional.
+ * @param {WheelEvent} e
+ * @returns {number}
+ */
+function getDominantScrollDelta(e) {
+  const absX  = Math.abs(e.deltaX);
+  const absY  = Math.abs(e.deltaY);
+  const delta = absX > absY ? e.deltaX : e.deltaY;
+  return Math.abs(delta) < 5 ? 0 : delta;
+}
+
 /* ──────────────────────────────────────────────────────
    NARRATION SCENE PLAYER
    Drives the multi-scene PNG animation.
@@ -678,10 +701,8 @@ class ErdtreeHScroll {
       // Accept whichever axis is dominant.
       // deltaX lets trackpad left/right swipe work; deltaY is the reliable fallback
       // (Safari intercepts horizontal swipes for history before they reach wheel).
-      const absX = Math.abs(e.deltaX);
-      const absY = Math.abs(e.deltaY);
-      const delta = absX > absY ? e.deltaX : e.deltaY;
-      if (Math.abs(delta) < 5) return;   // ignore tiny/accidental events
+      const delta = getDominantScrollDelta(e);
+      if (delta === 0) return;
 
       const goingForward = delta > 0;
 
@@ -760,7 +781,7 @@ class ErdtreeHScroll {
 
     if (isFirst) {
       this.#syncOverlay(idx);
-      this.#checkChapterCues();
+      this.#updateChapterFromFrame();
 
       if (!isOverlay) {
         // Pure PNG-sequence: run the frame animation; #rafId blocks wheel handler.
@@ -776,7 +797,7 @@ class ErdtreeHScroll {
             this.#done = true;
             document.body.style.overflow = "";
           }
-        }, 600);
+        }, TRANSITION_TIMING.OVERLAY_SLIDE_LOCK);
       }
       return;
     }
@@ -788,7 +809,7 @@ class ErdtreeHScroll {
       // Overlay scene (video or boss image): switch immediately so there is
       // no blank gap. CSS opacity transition handles the crossfade visually.
       this.#syncOverlay(idx);
-      this.#checkChapterCues();
+      this.#updateChapterFromFrame();
       if (idx >= SCENES.length - 1) {
         this.#done = true;
         document.body.style.overflow = "";
@@ -796,25 +817,25 @@ class ErdtreeHScroll {
       // Hold the slide-lock long enough for the CSS fade to settle.
       this.#slideTimer = setTimeout(() => {
         this.#sliding = false;
-      }, 600);
+      }, TRANSITION_TIMING.OVERLAY_SLIDE_LOCK);
     } else {
       // Pure PNG-sequence scene: slide the canvas out, seek, slide back in.
       const el   = this.#canvasEl;
       const outX = direction === 1 ? "-100%" : "100%";
       const inX  = direction === 1 ?  "100%" : "-100%";
 
-      el.style.transition = "transform 0.3s ease-in";
+      el.style.transition = `transform ${TRANSITION_TIMING.CANVAS_SLIDE_OUT / 1000}s ease-in`;
       el.style.transform  = `translateX(${outX})`;
 
       this.#slideTimer = setTimeout(() => {
         this.#syncOverlay(idx);
         this.#player.seek(this.#frame);
-        this.#checkChapterCues();
+        this.#updateChapterFromFrame();
 
         el.style.transition = "none";
         el.style.transform  = `translateX(${inX})`;
         void el.offsetWidth;
-        el.style.transition = "transform 0.35s ease-out";
+        el.style.transition = `transform ${TRANSITION_TIMING.CANVAS_SLIDE_IN / 1000}s ease-out`;
         el.style.transform  = "translateX(0)";
         this.#lastTs = null;
         this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
@@ -822,8 +843,8 @@ class ErdtreeHScroll {
         this.#slideTimer = setTimeout(() => {
           el.style.transition = "";
           this.#sliding = false;
-        }, 350);
-      }, 300);
+        }, TRANSITION_TIMING.CANVAS_SLIDE_IN);
+      }, TRANSITION_TIMING.CANVAS_SLIDE_OUT);
     }
   }
 
@@ -843,7 +864,7 @@ class ErdtreeHScroll {
       this.#lastTs  = ts - (elapsed % frameDuration);
       this.#frame   = Math.min(this.#frame + frames, this.#targetFrame);
       this.#player.seek(this.#frame);
-      this.#checkChapterCues();
+      this.#updateChapterFromFrame();
 
       if (this.#frame >= this.#targetFrame) {
         if (this.#sceneIdx >= SCENES.length - 1) {
@@ -858,7 +879,7 @@ class ErdtreeHScroll {
     this.#rafId = requestAnimationFrame(ts => this.#tick(ts));
   }
 
-  #checkChapterCues() {
+  #updateChapterFromFrame() {
     let chapterIdx = -1;
     for (let i = CHAPTER_CUES.length - 1; i >= 0; i--) {
       if (this.#frame >= CHAPTER_CUES[i].frame) { chapterIdx = i; break; }
@@ -922,6 +943,46 @@ class SideNav {
   }
 }
 
+/**
+ * Fades an NPC dialog, shows the subtitle, plays the audio, then restores.
+ * Shared by ChoiceMap and RoundtableNPC to avoid duplicated logic.
+ * @param {{
+ *   dialog:      HTMLDialogElement,
+ *   audio:       AudioController,
+ *   npcName:     string,
+ *   srcs:        string[],
+ *   subtitleLine: string,
+ *   unlockId?:   string | null,
+ * }} opts
+ */
+function playNpcTopic({ dialog, audio, npcName, srcs, subtitleLine, unlockId = null }) {
+  dialog.classList.add("npc-dialog--faded");
+
+  let hasRestored = false;
+  const restoreDialog = () => {
+    if (hasRestored) return;
+    hasRestored = true;
+    subtitle.hide();
+    if (unlockId) document.getElementById(unlockId)?.removeAttribute("hidden");
+    setTimeout(() => dialog.classList.remove("npc-dialog--faded"), DIALOGUE_TIMING.SUBTITLE_RESTORE);
+  };
+  const skipAndRestore = () => {
+    if (hasRestored) return;
+    audio.stopDialogue();
+    restoreDialog();
+  };
+
+  setTimeout(() => {
+    subtitle.show(npcName, subtitleLine);
+    audio.playDialogueLine(srcs, restoreDialog);
+    // Arm skip listener after SKIP_ARM ms to avoid catching the triggering click.
+    setTimeout(
+      () => document.addEventListener("click", skipAndRestore, { capture: true, once: true }),
+      DIALOGUE_TIMING.SKIP_ARM,
+    );
+  }, DIALOGUE_TIMING.DIALOG_FADE);
+}
+
 /* ──────────────────────────────────────────────────────
    CHOICE MAP (Phase 3)
    Listens for clicks on the roundtable <area> hotspot.
@@ -967,9 +1028,10 @@ class ChoiceMap {
     this.#dialog.querySelectorAll(".npc-topic-btn[data-audio]").forEach(btn => {
       btn.addEventListener("click", e => {
         e.preventDefault();
-        const srcs = (/** @type {HTMLElement} */ (btn).dataset.audio ?? "").split(",").map(s => s.trim()).filter(Boolean);
-        const line = /** @type {HTMLElement} */ (btn).dataset.subtitle ?? btn.textContent?.trim() ?? "";
-        this.#playTopic(srcs, line);
+        const el   = /** @type {HTMLElement} */ (btn);
+        const srcs = (el.dataset.audio ?? "").split(",").map(s => s.trim()).filter(Boolean);
+        const line = el.dataset.subtitle ?? btn.textContent?.trim() ?? "";
+        playNpcTopic({ dialog: this.#dialog, audio: this.#audio, npcName: "Enia, the Finger Reader", srcs, subtitleLine: line });
       });
     });
 
@@ -991,34 +1053,6 @@ class ChoiceMap {
 
     // Escape key: browser fires 'cancel' before closing — run our cleanup
     this.#dialog.addEventListener("cancel", () => closeDialog());
-  }
-
-  /**
-   * Fades dialog, shows subtitle, plays audio, then restores.
-   * @param {string[]} srcs
-   * @param {string}   line
-   */
-  #playTopic(srcs, line) {
-    this.#dialog.classList.add("npc-dialog--faded");
-
-    let done = false;
-    const restore = () => {
-      if (done) return;
-      done = true;
-      subtitle.hide();
-      setTimeout(() => this.#dialog.classList.remove("npc-dialog--faded"), DIALOGUE_TIMING.SUBTITLE_RESTORE);
-    };
-    const onSkip = () => {
-      if (done) return;
-      this.#audio.stopDialogue();
-      restore();
-    };
-
-    setTimeout(() => {
-      subtitle.show("Enia, the Finger Reader", line);
-      this.#audio.playDialogueLine(srcs, restore);
-      setTimeout(() => document.addEventListener("click", onSkip, { capture: true, once: true }), DIALOGUE_TIMING.SKIP_ARM);
-    }, DIALOGUE_TIMING.DIALOG_FADE);
   }
 
   #transitionToNarration() {
@@ -1211,11 +1245,11 @@ class RoundtableNPC {
     dialog.querySelectorAll(".npc-topic-btn[data-audio]").forEach(btn => {
       btn.addEventListener("click", e => {
         e.preventDefault();
-        const el   = /** @type {HTMLElement} */ (btn);
-        const srcs = (el.dataset.audio ?? "").split(",").map(s => s.trim()).filter(Boolean);
-        const line = el.dataset.subtitle ?? btn.textContent?.trim() ?? "";
+        const el       = /** @type {HTMLElement} */ (btn);
+        const srcs     = (el.dataset.audio ?? "").split(",").map(s => s.trim()).filter(Boolean);
+        const line     = el.dataset.subtitle ?? btn.textContent?.trim() ?? "";
         const unlockId = el.dataset.unlocks ?? null;
-        this.#playTopic(dialog, srcs, line, unlockId);
+        playNpcTopic({ dialog, audio: this.#audio, npcName: this.#name, srcs, subtitleLine: line, unlockId });
       });
     });
 
@@ -1230,41 +1264,6 @@ class RoundtableNPC {
     dialog.addEventListener("cancel", () => closeDialog());
   }
 
-  /**
-   * Fades out the dialog, shows subtitle, plays audio sequence, then restores.
-   * Clicking anywhere while audio plays skips it and restores the dialog.
-   * If unlockId is set, the element with that ID is revealed when the dialog
-   * fades back in — whether the audio completed or was skipped.
-   * @param {HTMLDialogElement} dialog
-   * @param {string[]}          srcs
-   * @param {string}            line
-   * @param {string | null}     [unlockId]
-   */
-  #playTopic(dialog, srcs, line, unlockId = null) {
-    dialog.classList.add("npc-dialog--faded");
-
-    let done = false;
-    const restore = () => {
-      if (done) return;
-      done = true;
-      subtitle.hide();
-      if (unlockId) document.getElementById(unlockId)?.removeAttribute("hidden");
-      setTimeout(() => dialog.classList.remove("npc-dialog--faded"), DIALOGUE_TIMING.SUBTITLE_RESTORE);
-    };
-    const onSkip = () => {
-      if (done) return;
-      this.#audio.stopDialogue();
-      restore();
-    };
-
-    setTimeout(() => {
-      subtitle.show(this.#name, line);
-      this.#audio.playDialogueLine(srcs, restore);
-      // Arm the skip listener after SKIP_ARM ms to avoid catching the
-      // triggering click. Capture phase so it fires before element handlers.
-      setTimeout(() => document.addEventListener("click", onSkip, { capture: true, once: true }), DIALOGUE_TIMING.SKIP_ARM);
-    }, DIALOGUE_TIMING.DIALOG_FADE);
-  }
 }
 
 /* ──────────────────────────────────────────────────────
@@ -1282,10 +1281,10 @@ class GraceEmbers {
 
   /** @type {HTMLCanvasElement} */        #canvas;
   /** @type {CanvasRenderingContext2D} */ #ctx;
-  #W = 0;
-  #H = 0;
+  #width  = 0;
+  #height = 0;
   /** @type {Particle[]} */ #particles = [];
-  #lastTs = 0;
+  #lastTimestamp = 0;
 
   /** @param {HTMLCanvasElement} canvasEl */
   constructor(canvasEl) {
@@ -1301,9 +1300,9 @@ class GraceEmbers {
   }
 
   #resize() {
-    const rect  = this.#canvas.parentElement?.getBoundingClientRect();
-    this.#W = this.#canvas.width  = Math.round(rect?.width  ?? 0) || window.innerWidth;
-    this.#H = this.#canvas.height = Math.round(rect?.height ?? 0) || window.innerHeight;
+    const rect     = this.#canvas.parentElement?.getBoundingClientRect();
+    this.#width    = this.#canvas.width  = Math.round(rect?.width  ?? 0) || window.innerWidth;
+    this.#height   = this.#canvas.height = Math.round(rect?.height ?? 0) || window.innerHeight;
   }
 
   /**
@@ -1313,8 +1312,8 @@ class GraceEmbers {
   #newParticle(distributed = false) {
     const size = 1.2 + Math.random() * 2.5;
     return {
-      x:          Math.random() * this.#W,
-      y:          distributed ? Math.random() * this.#H : this.#H + size * 6,
+      x:          Math.random() * this.#width,
+      y:          distributed ? Math.random() * this.#height : this.#height + size * 6,
       size,
       vy:         16 + Math.random() * 30,
       driftAmp:   10 + Math.random() * 20,
@@ -1327,45 +1326,60 @@ class GraceEmbers {
     };
   }
 
+  /**
+   * Update physics for one particle. Returns false when it should be removed.
+   * @param {Particle} p
+   * @param {number} dt  delta-time in seconds
+   * @param {number} t   running time in seconds (for drift sine)
+   */
+  #updateParticle(p, dt, t) {
+    p.y -= p.vy * dt;
+    p.x += Math.sin(t * p.driftFreq * Math.PI * 2 + p.driftPhase) * p.driftAmp * dt;
+    p.alpha += p.fadeSpeed * p.fadeDir * dt;
+    if (p.alpha >= p.maxAlpha) { p.alpha = p.maxAlpha; p.fadeDir = -1; }
+    if (p.alpha <= 0 && p.fadeDir < 0) return false;
+    p.alpha = Math.max(0, p.alpha);
+    return p.y >= -p.size * 8;
+  }
+
+  /**
+   * Draw one particle onto the canvas context.
+   * @param {Particle} p
+   */
+  #drawParticle(p) {
+    const ctx = this.#ctx;
+    const r   = p.size * 5;
+    const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+    grd.addColorStop(0,   `rgba(255, 225, 120, ${p.alpha})`);
+    grd.addColorStop(0.3, `rgba(212, 165,  40, ${p.alpha * 0.65})`);
+    grd.addColorStop(1,   `rgba(160, 100,  10, 0)`);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = grd;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * 0.55, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 250, 210, ${Math.min(p.alpha * 2.2, 1)})`;
+    ctx.fill();
+  }
+
   /** @param {DOMHighResTimeStamp} ts */
   #tick(ts) {
     requestAnimationFrame(ts => this.#tick(ts));
-    const dt = Math.min((ts - this.#lastTs) / 1000, 0.1);
-    this.#lastTs = ts;
+    const dt = Math.min((ts - this.#lastTimestamp) / 1000, 0.1);
+    this.#lastTimestamp = ts;
     const t = ts * 0.001;
 
-    const ctx = this.#ctx;
-    ctx.clearRect(0, 0, this.#W, this.#H);
+    this.#ctx.clearRect(0, 0, this.#width, this.#height);
 
     if (this.#particles.length < GraceEmbers.#MAX && Math.random() < dt * 4) {
       this.#particles.push(this.#newParticle(false));
     }
 
     this.#particles = this.#particles.filter(p => {
-      p.y -= p.vy * dt;
-      p.x += Math.sin(t * p.driftFreq * Math.PI * 2 + p.driftPhase) * p.driftAmp * dt;
-
-      p.alpha += p.fadeSpeed * p.fadeDir * dt;
-      if (p.alpha >= p.maxAlpha) { p.alpha = p.maxAlpha; p.fadeDir = -1; }
-      if (p.alpha <= 0 && p.fadeDir < 0) return false;
-      p.alpha = Math.max(0, p.alpha);
-      if (p.y < -p.size * 8) return false;
-
-      const r   = p.size * 5;
-      const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-      grd.addColorStop(0,   `rgba(255, 225, 120, ${p.alpha})`);
-      grd.addColorStop(0.3, `rgba(212, 165,  40, ${p.alpha * 0.65})`);
-      grd.addColorStop(1,   `rgba(160, 100,  10, 0)`);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = grd;
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * 0.55, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 250, 210, ${Math.min(p.alpha * 2.2, 1)})`;
-      ctx.fill();
-
+      if (!this.#updateParticle(p, dt, t)) return false;
+      this.#drawParticle(p);
       return true;
     });
   }

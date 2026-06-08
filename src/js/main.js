@@ -296,7 +296,14 @@ const SCENES = Object.freeze([
     dir: "Scenes/01_Elden_Ring",
     prefix: "Elden_ring",
     count: 55,
-    audio: ["audio/dialogue/Elden Ring.wav", "audio/dialogue/O Elden Ring.wav"],
+    // "giving life" line plays sequentially after "O Elden Ring" — it was
+    // originally a mid-scene cue at frame 40, but that path is dead now that
+    // scene 1 is a video overlay (no frame ticking).
+    audio: [
+      "audio/dialogue/Elden Ring.wav",
+      "audio/dialogue/O Elden Ring.wav",
+      "audio/dialogue/giving life its fullest brilliance.wav",
+    ],
     text: "Elden Ring. O, Elden Ring.",
     videoId: "elden-ring",
   },
@@ -510,12 +517,10 @@ const CHAPTER_CUES = (() => {
     frame += s.count;
     return cue;
   });
-  cues.splice(1, 0, {
-    frame: 40,
-    audio: ["audio/dialogue/giving life its fullest brilliance.wav"],
-    text:  "Giving life its<br>fullest brilliance.",
-    loop:  false,
-  });
+  // NOTE: the original "giving life its fullest brilliance" splice at frame 40
+  // was removed — all scenes are now video/boss overlays and the frame counter
+  // never ticks, so frame-based mid-scene cues can never fire.
+  // The audio is now chained onto scene 1's audio array instead.
   return Object.freeze(cues);
 })();
 
@@ -538,6 +543,9 @@ class ErdtreeHScroll {
   /** @type {ErdtreePlayer} */     #player;
   /** @type {AudioController} */   #audio;
   /** @type {number[]} */          #sceneStart = [];
+  /** Cached static node lists — never change after page load. */
+  /** @type {HTMLElement[]} */     #bossSlides  = [];
+  /** @type {HTMLElement[]} */     #sceneVideos = [];
 
   #chapter     = -1;
   #rafId       = null;
@@ -571,6 +579,10 @@ class ErdtreeHScroll {
 
     let f = 0;
     for (const scene of SCENES) { this.#sceneStart.push(f); f += scene.count; }
+
+    // Cache static overlay node lists — elements never added/removed after load.
+    this.#bossSlides  = Array.from(this.#stage.querySelectorAll(".boss-slide"));
+    this.#sceneVideos = Array.from(this.#stage.querySelectorAll(".scene-video"));
 
     this.#player.init();
     this.#initVisibilityObserver();
@@ -698,12 +710,10 @@ class ErdtreeHScroll {
     const isOverlay = bossId !== null || videoId !== null;
 
     // Deactivate all boss overlays.
-    this.#stage.querySelectorAll(".boss-slide").forEach(el => {
-      el.classList.remove("boss-slide--active");
-    });
+    this.#bossSlides.forEach(el => el.classList.remove("boss-slide--active"));
 
     // Pause + deactivate all video overlays.
-    this.#stage.querySelectorAll(".scene-video").forEach(el => {
+    this.#sceneVideos.forEach(el => {
       el.classList.remove("scene-video--active");
       const v = el.querySelector("video");
       if (v) { v.pause(); v.currentTime = 0; }
@@ -773,7 +783,6 @@ class ErdtreeHScroll {
 
     this.#sliding = true;
     clearTimeout(this.#slideTimer);
-    const el   = this.#canvasEl;
 
     if (isOverlay) {
       // Overlay scene (video or boss image): switch immediately so there is
@@ -790,6 +799,7 @@ class ErdtreeHScroll {
       }, 600);
     } else {
       // Pure PNG-sequence scene: slide the canvas out, seek, slide back in.
+      const el   = this.#canvasEl;
       const outX = direction === 1 ? "-100%" : "100%";
       const inX  = direction === 1 ?  "100%" : "-100%";
 
@@ -1254,89 +1264,6 @@ class RoundtableNPC {
       // triggering click. Capture phase so it fires before element handlers.
       setTimeout(() => document.addEventListener("click", onSkip, { capture: true, once: true }), DIALOGUE_TIMING.SKIP_ARM);
     }, DIALOGUE_TIMING.DIALOG_FADE);
-  }
-}
-
-/* ──────────────────────────────────────────────────────
-   GRACE EMBERS — golden mote particle system
-────────────────────────────────────────────────────── */
-
-/* ──────────────────────────────────────────────────────
-   ROUNDTABLE PARALLAX
-   Mouse-driven depth effect on the NPC layers.
-   Background shifts at the slowest rate (feels far away);
-   each NPC layer shifts a little faster (feels closer).
-   A lerp smooths all motion so nothing snaps.
-────────────────────────────────────────────────────── */
-
-/**
- * @typedef {{ el: HTMLElement, rx: number, ry: number, scale: number }} ParallaxLayer
- */
-
-class RoundtableParallax {
-  /** @type {ParallaxLayer[]} */ #layers = [];
-  #mouseX  = 0;
-  #mouseY  = 0;
-  #lerpX   = 0;
-  #lerpY   = 0;
-  #rafId   = null;
-
-  constructor() {
-    const section = document.getElementById("roundtable");
-    if (!section) return;
-
-    // rx/ry = fraction of mouse offset applied as translate.
-    // scale  = base scale baked into the JS transform so CSS scale
-    //          is never overridden (background uses 1.05 to give
-    //          parallax headroom so edges are never revealed).
-    /** @type {Array<[string, number, number, number]>} */
-    const defs = [
-      ["rt-base",       0.005, 0.004, 1.05],  // background — barely moves
-      ["rt-img-gideon", 0.012, 0.009, 1],
-      ["rt-img-d",      0.015, 0.011, 1],
-      ["rt-img-rogier", 0.018, 0.013, 1],
-      ["rt-img-enia",   0.022, 0.016, 1],
-    ];
-    for (const [id, rx, ry, scale] of defs) {
-      const el = document.getElementById(id);
-      if (el) this.#layers.push({ el, rx, ry, scale });
-    }
-
-    // Initialise background scale immediately so it's correct before any mouse input.
-    for (const { el, scale } of this.#layers) {
-      if (scale !== 1) el.style.transform = `scale(${scale})`;
-    }
-
-    section.addEventListener("mousemove", e => {
-      const r = section.getBoundingClientRect();
-      this.#mouseX = e.clientX - r.left  - r.width  / 2;
-      this.#mouseY = e.clientY - r.top   - r.height / 2;
-      this.#start();
-    }, { passive: true });
-
-    section.addEventListener("mouseleave", () => {
-      this.#mouseX = 0;
-      this.#mouseY = 0;
-    }, { passive: true });
-  }
-
-  #start() {
-    if (this.#rafId) return;
-    const tick = () => {
-      this.#lerpX += (this.#mouseX - this.#lerpX) * 0.07;
-      this.#lerpY += (this.#mouseY - this.#lerpY) * 0.07;
-
-      for (const { el, rx, ry, scale } of this.#layers) {
-        const scaleStr = scale !== 1 ? `scale(${scale}) ` : "";
-        el.style.transform = `${scaleStr}translate(${this.#lerpX * rx}px, ${this.#lerpY * ry}px)`;
-      }
-
-      // Keep ticking until the lerp has fully settled back to rest.
-      const settled = Math.abs(this.#mouseX - this.#lerpX) < 0.15
-                   && Math.abs(this.#mouseY - this.#lerpY) < 0.15;
-      this.#rafId = settled ? null : requestAnimationFrame(tick);
-    };
-    this.#rafId = requestAnimationFrame(tick);
   }
 }
 

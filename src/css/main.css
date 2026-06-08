@@ -671,6 +671,12 @@ body {
   border-radius: 2px;
 }
 
+/* NPC click/hover zone positions — matched to roundtable scene layout */
+#rt-zone-gideon { left: 10%; top: 49%; width: 13%; height: 42%; }
+#rt-zone-d      { left: 16%; top: 49%; width: 15%; height: 39%; }
+#rt-zone-rogier { left: 58%; top: 49%; width: 13%; height: 38%; }
+#rt-zone-enia   { left: 71%; top: 34%; width: 25%; height: 66%; }
+
 /* ── Seek confirmation dialog ─────────────────────────── */
 
 #dialog-seek-confirm[open] {

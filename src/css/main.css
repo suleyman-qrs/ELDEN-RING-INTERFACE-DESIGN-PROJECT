@@ -57,7 +57,6 @@
 
   --white: #fff;   /* kept for true-white backgrounds / overlays only */
   --black: #000;
-  --dark:  #0a0a0a;
 }
 
 html {
@@ -130,18 +129,26 @@ body {
    ====================================================== */
 
 .phase--hero {
-  background: var(--black);
+  background:
+    url("../images/bg_hero.jpg") center center / cover no-repeat;
   flex-direction: column;
 }
 
 .hero-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-    ellipse 80% 80% at 50% 50%,
-    rgba(18, 15, 5, 0) 25%,
-    rgba(0, 0, 0, 0.9) 100%
-  );
+  background:
+    /* bottom fade — ensures scroll-cta area stays dark */
+    linear-gradient(to top, rgba(0,0,0,0.92) 0%, transparent 35%),
+    /* top fade — keeps name tag readable */
+    linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 30%),
+    /* radial centre-out vignette */
+    radial-gradient(
+      ellipse 90% 85% at 50% 42%,
+      rgba(0,0,0,0)    20%,
+      rgba(0,0,0,0.55) 65%,
+      rgba(0,0,0,0.88) 100%
+    );
   pointer-events: none;
 }
 
@@ -151,6 +158,17 @@ body {
   width: 100%;
   height: 100%;
   pointer-events: none;
+}
+
+@keyframes heroFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .hero-content {
@@ -168,19 +186,25 @@ body {
 
 .hero-name {
   font-family: var(--font-display);
-  font-size: clamp(10px, 1vw, 14px);
+  font-size: clamp(28px, 5vw, 72px);
   font-weight: 400;
-  letter-spacing: 0.42em;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: var(--gold-dim);
-  text-shadow: var(--glow-sm);
+  color: rgba(235, 215, 155, 0.92);
+  text-shadow:
+    0 0 40px rgba(0,0,0,0.98),
+    0 4px 16px rgba(0,0,0,0.92),
+    0 2px 6px rgba(0,0,0,0.85),
+    var(--glow-sm);
+  opacity: 0;
+  animation: heroFadeUp 1.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.6s forwards;
 }
 
 .hero-name::after {
   content: "";
   display: block;
-  margin: 16px auto 0;
-  width: 48px;
+  margin: 20px auto 0;
+  width: 72px;
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--gold-line), transparent);
 }
@@ -192,8 +216,14 @@ body {
   font-size: clamp(28px, 5.5vw, 82px);
   line-height: 1.18;
   color: var(--cream);
-  text-shadow: var(--glow-lg);
+  text-shadow:
+    0 0 60px rgba(0,0,0,0.98),
+    0 4px 18px rgba(0,0,0,0.92),
+    0 2px 6px rgba(0,0,0,0.85),
+    var(--glow-lg);
   text-align: center;
+  opacity: 0;
+  animation: heroFadeUp 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) 1.6s forwards;
 }
 
 .hero-quote p {
@@ -253,7 +283,7 @@ body {
   opacity: 0 !important;
 }
 
-.scroll-chevron {
+.scroll-cta__chevron {
   width: 10px;
   height: 10px;
   border-right: 1px solid rgba(255, 255, 255, 0.45);
@@ -274,7 +304,7 @@ body {
   }
 }
 
-.scroll-label {
+.scroll-cta__label {
   font-family: var(--font-serif);
   font-size: clamp(11px, 1.1vw, 16px);
   letter-spacing: 0.14em;
@@ -287,12 +317,13 @@ body {
 
 .phase--biography {
   background: var(--black);
+  margin-top: 40vh;
 }
 
 .bio-bg {
   position: absolute;
   inset: 0;
-  background-image: url("../images/Image 20_0002_Layer 0.png");
+  background-image: url("../images/bio_bg_map.png");
   background-size: cover;
   background-position: center;
   opacity: 0.07;
@@ -354,53 +385,89 @@ body {
 }
 
 /* Subtitle overlay — Elden Ring style */
+/* Hidden portrait preloads — let Parcel bundle the images; JS reads .src at runtime */
+.rt-portrait-preload {
+  display: none;
+}
+
+/* ── NPC dialogue subtitle — visual novel style ───────── */
+
 .rt-subtitle {
   position: absolute;
-  bottom: 9%;
+  bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: min(780px, 82vw);
-  text-align: center;
-  z-index: 10;
+  width: min(1100px, 96vw);
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(18px, 2vw, 30px);
+  padding: clamp(20px, 2.8vh, 34px) clamp(24px, 2.8vw, 44px);
+  background: rgba(8, 6, 3, 0.93);
+  border: 1px solid var(--gold-border);
+  border-bottom: none;
+  z-index: 11;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.45s ease;
+  transition: opacity 0.35s ease;
 }
 
 .rt-subtitle.rt-subtitle--visible {
   opacity: 1;
 }
 
+.rt-subtitle__portrait {
+  flex-shrink: 0;
+  width: clamp(90px, 10vw, 140px);
+  height: clamp(90px, 10vw, 140px);
+  object-fit: cover;
+  object-position: top center;
+  border: 1px solid var(--gold-border);
+  display: block;
+  filter: sepia(0.15) contrast(1.05);
+}
+
+.rt-subtitle__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .rt-subtitle__name {
   display: block;
   font-family: var(--font-display);
-  font-size: clamp(9px, 0.9vw, 13px);
-  letter-spacing: 0.35em;
+  font-size: clamp(11px, 1vw, 15px);
+  letter-spacing: 0.42em;
   text-transform: uppercase;
   color: var(--gold);
-  margin-bottom: 10px;
-  opacity: 0.85;
+  opacity: 0.9;
+  margin-bottom: clamp(7px, 0.9vh, 12px);
 }
 
 .rt-subtitle__text {
   margin: 0;
   font-family: var(--font-serif);
-  font-size: clamp(14px, 1.45vw, 21px);
+  font-size: clamp(17px, 1.7vw, 26px);
   color: var(--cream);
-  line-height: 1.7;
-  text-shadow:
-    0 1px 6px rgba(0, 0, 0, 1),
-    0 0 28px rgba(0, 0, 0, 0.95);
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0)    0%,
-    rgba(0, 0, 0, 0.55) 16%,
-    rgba(0, 0, 0, 0.55) 84%,
-    rgba(0, 0, 0, 0)    100%
-  );
-  padding: 14px 28px;
-  letter-spacing: 0.025em;
+  line-height: 1.65;
+  letter-spacing: 0.02em;
   font-style: italic;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  min-height: 2em; /* prevent layout jump as text types in */
+}
+
+/* Static block cursor — no blink, hidden once typing finishes */
+.rt-subtitle__cursor {
+  display: inline;
+}
+.rt-subtitle__cursor::after {
+  content: "\258C"; /* ▌ LEFT HALF BLOCK */
+  color: inherit;
+  font-style: normal;
+}
+.rt-subtitle__cursor.rt-subtitle__cursor--done::after {
+  opacity: 0;
 }
 
 .rt-layer {
@@ -417,42 +484,8 @@ body {
   will-change: transform;
 }
 
-.rt-layer--npc {
-  will-change: transform;
-}
-
 .rt-layer--no-events {
   pointer-events: none;
-}
-
-.rt-layer--glow {
-  opacity: 1;
-  mix-blend-mode: normal;
-}
-
-.rt-layer--hover {
-  opacity: 1;
-  cursor: pointer;
-  pointer-events: none;
-  transition: filter 0.3s ease;
-}
-
-.phase--roundtable.rt-awake .rt-layer--glow {
-  opacity: 0;
-}
-
-.phase--roundtable.rt-awake .rt-layer--hover {
-  pointer-events: auto;
-}
-
-@keyframes rtGlowPulse {
-  0%,
-  100% {
-    opacity: 0.8;
-  }
-  50% {
-    opacity: 1;
-  }
 }
 
 .rt-vignette {
@@ -465,6 +498,94 @@ body {
   );
   pointer-events: none;
   z-index: 1;
+}
+
+/* ── Roundtable tutorial panel ────────────────────────── */
+
+.rt-tutorial {
+  position: absolute;
+  top: 6%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, 84vw);
+  z-index: 5;
+  background: rgba(8, 6, 3, 0.86);
+  border: 1px solid var(--gold-border);
+  box-shadow:
+    0 0 0 4px rgba(0, 0, 0, 0.55),
+    inset 0 0 60px rgba(0, 0, 0, 0.5);
+  padding: clamp(24px, 3.6vh, 44px) clamp(30px, 4vw, 56px);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.7s ease;
+}
+
+/* Show when roundtable is awake */
+.phase--roundtable.rt-awake .rt-tutorial:not(.rt-tutorial--dismissed) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Fade out when dismissed */
+.rt-tutorial--dismissed {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.rt-tutorial__rule {
+  display: block;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-line), transparent);
+  margin: clamp(10px, 1.4vh, 16px) 0;
+}
+
+.rt-tutorial__heading {
+  font-family: var(--font-display);
+  font-size: clamp(12px, 1.1vw, 16px);
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.9;
+  margin: 0 0 6px;
+}
+
+.rt-tutorial__body {
+  font-family: var(--font-serif);
+  font-size: clamp(15px, 1.4vw, 20px);
+  color: var(--cream);
+  line-height: 1.8;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  margin: 0;
+  opacity: 0.88;
+}
+
+.rt-tutorial__body em {
+  font-style: normal;
+  color: var(--gold);
+  opacity: 0.95;
+}
+
+.rt-tutorial__close {
+  display: inline-block;
+  margin-top: clamp(16px, 2vh, 24px);
+  padding: 9px 30px;
+  background: transparent;
+  border: 1px solid var(--gold-border);
+  font-family: var(--font-display);
+  font-size: clamp(11px, 1vw, 14px);
+  letter-spacing: 0.38em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.rt-tutorial__close:hover {
+  color: var(--gold-bright);
+  border-color: var(--gold);
+  background: rgba(200, 164, 52, 0.07);
 }
 
 .rt-hint {
@@ -522,6 +643,7 @@ body {
 .rt-layer--npc {
   opacity: 1;
   pointer-events: none;
+  will-change: transform;
   transition: filter 0.3s ease;
 }
 
@@ -543,11 +665,91 @@ body {
   pointer-events: auto;
 }
 
-/* Keyboard focus indicator — invisible zones still need a visible focus ring. */
 .rt-npc-zone:focus-visible {
   outline: 2px solid rgba(212, 175, 80, 0.8);
   outline-offset: 4px;
   border-radius: 2px;
+}
+
+/* ── Seek confirmation dialog ─────────────────────────── */
+
+#dialog-seek-confirm[open] {
+  width: min(460px, 80vw);
+  max-height: none;
+  overflow: visible;
+}
+
+.seek-confirm__body {
+  padding: clamp(20px, 3vh, 32px) clamp(24px, 3.5vw, 44px);
+  text-align: center;
+}
+
+.seek-confirm__warning {
+  font-family: var(--font-display);
+  font-size: clamp(11px, 1vw, 14px);
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.8;
+  display: block;
+  margin-bottom: clamp(10px, 1.4vh, 16px);
+}
+
+.seek-confirm__question {
+  font-family: var(--font-serif);
+  font-size: clamp(16px, 1.5vw, 22px);
+  color: var(--cream);
+  font-style: italic;
+  line-height: 1.65;
+  margin: 0 0 clamp(6px, 1vh, 10px);
+}
+
+.seek-confirm__missed {
+  font-family: var(--font-serif);
+  font-size: clamp(13px, 1.15vw, 17px);
+  color: rgba(240, 226, 192, 0.5);
+  font-style: italic;
+  margin: 0 0 clamp(14px, 2vh, 22px);
+  line-height: 1.5;
+}
+
+.seek-confirm__actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.seek-confirm__btn {
+  padding: 10px 32px;
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: clamp(11px, 1vw, 14px);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.seek-confirm__btn--yes {
+  border: 1px solid var(--gold-border);
+  color: var(--gold-dim);
+}
+
+.seek-confirm__btn--yes:hover {
+  color: var(--gold-bright);
+  border-color: var(--gold);
+  background: rgba(200, 164, 52, 0.08);
+}
+
+.seek-confirm__btn--no {
+  border: 1px solid rgba(200, 190, 160, 0.2);
+  color: rgba(240, 226, 192, 0.4);
+}
+
+.seek-confirm__btn--no:hover {
+  color: var(--cream);
+  border-color: rgba(200, 190, 160, 0.5);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 /* ── NPC DIALOGUE — Elden Ring centered info-panel style ──
@@ -576,8 +778,8 @@ body {
   transform: translate(-50%, -50%);
   margin: 0;
 
-  width: min(580px, 72vw);
-  max-height: 70vh;
+  width: min(760px, 84vw);
+  max-height: 78vh;
   overflow: hidden;         /* clips scroll; flex children handle inner scroll */
 
   display: flex;
@@ -585,12 +787,13 @@ body {
   outline: none;
   padding: 0;
 
-  /* Warm charcoal — same dark brownish tone as in-game panels */
-  background: rgba(18, 15, 10, 0.97);
-
-  /* Very subtle 1px neutral outline — matches the game */
-  border: 1px solid rgba(200, 190, 160, 0.22);
-  box-shadow: 0 12px 64px rgba(0, 0, 0, 0.96);
+  /* Match tutorial / subtitle palette */
+  background: rgba(8, 6, 3, 0.93);
+  border: 1px solid var(--gold-border);
+  box-shadow:
+    0 0 0 4px rgba(0, 0, 0, 0.55),
+    inset 0 0 60px rgba(0, 0, 0, 0.5),
+    0 12px 64px rgba(0, 0, 0, 0.96);
 }
 
 /* Scene darkens behind dialog */
@@ -611,7 +814,7 @@ body {
   display: block;
   flex-shrink: 0;
   height: 1px;
-  background: rgba(200, 190, 160, 0.18);
+  background: var(--gold-border);
 }
 
 /* Footer row with keyboard hints — always pinned to bottom */
@@ -620,10 +823,10 @@ body {
   display: block;
   flex-shrink: 0;
   text-align: center;
-  padding: clamp(9px, 1.4vh, 14px) 0;
-  border-top: 1px solid rgba(200, 190, 160, 0.18);
+  padding: clamp(11px, 1.6vh, 18px) 0;
+  border-top: 1px solid var(--gold-border);
   font-family: var(--font-sans);
-  font-size: clamp(10px, 0.82vw, 12px);
+  font-size: clamp(12px, 1vw, 15px);
   letter-spacing: 0.12em;
   color: rgba(240, 226, 192, 0.35);
   pointer-events: none;
@@ -634,12 +837,12 @@ body {
 .npc-dialog__title {
   flex-shrink: 0;
   font-family: var(--font-serif);
-  font-size: clamp(12px, 1.1vw, 16px);
+  font-size: clamp(16px, 1.5vw, 22px);
   font-weight: 400;
   letter-spacing: 0.08em;
   text-align: center;
   color: var(--cream);
-  padding: clamp(14px, 2.2vh, 22px) 32px;
+  padding: clamp(18px, 2.6vh, 28px) 36px;
   /* Thin rule below title — matches the game's title separator */
   border-bottom: 1px solid rgba(200, 190, 160, 0.18);
 }
@@ -657,17 +860,17 @@ body {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  padding: clamp(12px, 2vh, 20px) 0;
+  padding: clamp(14px, 2.4vh, 26px) 0;
 }
 
 .npc-topic-btn {
   width: 100%;
-  padding: 8px 28px;
+  padding: clamp(10px, 1.4vh, 16px) clamp(28px, 3vw, 44px);
   background: transparent;
   border: none;
   cursor: pointer;
   font-family: var(--font-serif);
-  font-size: clamp(13px, 1.15vw, 16px);
+  font-size: clamp(16px, 1.5vw, 22px);
   font-weight: 400;
   color: var(--cream);
   letter-spacing: 0.03em;
@@ -855,6 +1058,24 @@ body {
   will-change: transform;
 }
 
+/* Godrick — character anchored to the left */
+#boss-godrick .boss-slide__char {
+  object-position: left bottom;
+}
+
+/* Optional foreground layer — sits in front of the character (e.g. Margitt front) */
+.boss-slide__front {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  user-select: none;
+  pointer-events: none;
+  z-index: 2;
+}
+
 .erdtree-vignette {
   position: absolute;
   inset: 0;
@@ -967,14 +1188,29 @@ body {
    ====================================================== */
 
 .game-cta-section {
-  background: var(--dark);
+  position: relative;
+  background:
+    url("../images/bg_cta.jpg") center center / cover no-repeat;
   padding: clamp(80px, 12vh, 140px) clamp(32px, 8%, 120px);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+/* Dark overlay so text and panel stay legible over the CTA background */
+.game-cta-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.80) 100%),
+    radial-gradient(ellipse 80% 70% at 50% 50%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.6) 100%);
+  pointer-events: none;
+}
+
 .game-cta-inner {
+  position: relative;
+  z-index: 1;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -1002,7 +1238,10 @@ body {
   font-size: clamp(20px, 2.8vw, 44px);
   line-height: 1.38;
   color: var(--cream);
-  text-shadow: var(--glow-sm);
+  text-shadow:
+    0 0 48px rgba(0,0,0,0.98),
+    0 3px 12px rgba(0,0,0,0.9),
+    var(--glow-sm);
   max-width: min(680px, 90vw);
   letter-spacing: 0.04em;
 }
@@ -1168,7 +1407,7 @@ body {
 
 .audio-controls__title {
   font-family: var(--font-sans);
-  font-size: clamp(9px, 0.7vw, 11px);
+  font-size: clamp(11px, 0.9vw, 14px);
   letter-spacing: 0.28em;
   text-transform: uppercase;
   color: var(--gold);
@@ -1176,7 +1415,7 @@ body {
   margin-bottom: 2px;
 }
 
-.audio-ctrl-row {
+.audio-controls__row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1184,17 +1423,22 @@ body {
   user-select: none;
 }
 
-/* Hide the native checkbox */
-.audio-ctrl-input {
-  position: absolute;
-  opacity: 0;
+/* Hide the native checkbox visually but keep it interactive */
+.audio-controls__input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: static;
   width: 0;
   height: 0;
-  pointer-events: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  pointer-events: auto;
 }
 
-/* Diamond mark — mirrors .nav-dot style */
-.audio-ctrl-mark {
+/* Diamond mark — mirrors .sidenav__dot style */
+.audio-controls__mark {
   flex-shrink: 0;
   width: 6px;
   height: 6px;
@@ -1204,25 +1448,25 @@ body {
   transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.audio-ctrl-input:checked + .audio-ctrl-mark {
+.audio-controls__input:checked + .audio-controls__mark {
   background: var(--gold);
   border-color: var(--gold);
   box-shadow: 0 0 8px rgba(180, 148, 40, 0.7);
 }
 
-.audio-ctrl-label {
+.audio-controls__label {
   font-family: var(--font-sans);
-  font-size: clamp(10px, 0.75vw, 12px);
+  font-size: clamp(13px, 1vw, 16px);
   letter-spacing: 0.1em;
   color: rgba(240, 226, 192, 0.5);
   transition: color 0.2s ease;
 }
 
-.audio-ctrl-row:hover .audio-ctrl-label {
+.audio-controls__row:hover .audio-controls__label {
   color: var(--cream);
 }
 
-.audio-ctrl-input:checked ~ .audio-ctrl-label {
+.audio-controls__input:checked ~ .audio-controls__label {
   color: rgba(240, 226, 192, 0.75);
 }
 
@@ -1261,7 +1505,7 @@ body {
 }
 
 /* The button IS the diamond */
-.nav-dot {
+.sidenav__dot {
   flex-shrink: 0;
   display: block;
   width: 10px;
@@ -1279,14 +1523,14 @@ body {
     transform    0.25s ease;
 }
 
-.nav-dot:hover,
-.sidenav-list li:hover .nav-dot {
+.sidenav__dot:hover,
+.sidenav-list li:hover .sidenav__dot {
   background: rgba(200, 164, 52, 0.55);
   border-color: rgba(200, 164, 52, 0.8);
   transform: rotate(45deg) scale(1.4);
 }
 
-.nav-dot.active {
+.sidenav__dot.active {
   background: var(--gold);
   border-color: var(--gold-bright);
   box-shadow: 0 0 14px rgba(180, 148, 40, 0.9), 0 0 4px rgba(224, 186, 60, 0.6);
@@ -1294,7 +1538,7 @@ body {
 }
 
 /* Label — in normal flex flow, left of the diamond. Slides in on hover. */
-.nav-label {
+.sidenav__label {
   font-family: var(--font-sans);
   font-size: clamp(9px, 0.75vw, 11px);
   letter-spacing: 0.22em;
@@ -1310,13 +1554,13 @@ body {
     color     0.28s ease;
 }
 
-.sidenav-list li:hover .nav-label {
+.sidenav-list li:hover .sidenav__label {
   opacity: 1;
   transform: translateX(0);
   color: var(--cream);
 }
 
-.sidenav-list li:has(.nav-dot.active) .nav-label {
+.sidenav-list li:has(.sidenav__dot.active) .sidenav__label {
   opacity: 0.7;
   transform: translateX(0);
   color: var(--gold);
@@ -1346,7 +1590,7 @@ body {
    ====================================================== */
 
 @media (max-width: 768px) {
-  .nav-label {
+  .sidenav__label {
     display: none;
   }
 
@@ -1375,4 +1619,91 @@ body {
   .platform-btn {
     padding: 10px 16px;
   }
+}
+
+/* ═══════════════════════════════════════════════════════
+   NARRATIVE INTRO MODAL
+   Appears on first scroll from the hero section.
+═══════════════════════════════════════════════════════ */
+
+.intro-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+  pointer-events: none;
+}
+
+.intro-modal.intro-modal--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.intro-modal[hidden] {
+  display: none !important;
+}
+
+.intro-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* Centred floating panel */
+.intro-modal__panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  width: min(480px, 88vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(16px, 2.6vh, 26px);
+  text-align: center;
+  padding: clamp(28px, 5vh, 52px) clamp(28px, 5vw, 56px);
+}
+
+.intro-modal__title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(20px, 2.4vw, 32px);
+  letter-spacing: 0.1em;
+  color: var(--cream);
+  margin: 0;
+  opacity: 0.9;
+}
+
+.intro-modal__body {
+  font-family: var(--font-serif);
+  font-size: clamp(15px, 1.4vw, 19px);
+  line-height: 1.7;
+  color: rgba(220, 205, 175, 0.65);
+  margin: 0;
+}
+
+.intro-modal__enter {
+  font-family: var(--font-display);
+  font-size: clamp(13px, 1.3vw, 17px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(160, 128, 40, 0.35);
+  padding: 8px 4px;
+  cursor: pointer;
+  transition: color 0.25s, border-color 0.25s;
+  outline: none;
+}
+
+.intro-modal__enter:hover,
+.intro-modal__enter:focus-visible {
+  color: var(--cream);
+  border-color: rgba(160, 128, 40, 0.7);
 }

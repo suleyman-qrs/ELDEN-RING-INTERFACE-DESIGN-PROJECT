@@ -16,7 +16,7 @@ const FADE_STEP_MS = 50;
 /** Timing constants for the NPC dialogue flow (ms). */
 const DIALOGUE_TIMING = Object.freeze({
   /** Wait for dialog opacity transition before showing subtitle. */
-  DIALOG_FADE:      370,
+  DIALOG_FADE:      300,
   /** Delay before fading dialog back in after audio ends or is skipped. */
   SUBTITLE_RESTORE: 300,
   /** Delay before arming the skip-click listener (avoids catching the triggering click). */
@@ -133,6 +133,7 @@ class AudioController {
    */
   crossfadeToBgm(newSrc, fadeDuration = 2000, newVolume = 0.4) {
     this.stopBgm(fadeDuration);
+    this.#bgm = null; // decouple: startBgm won't hard-pause the still-fading track
     setTimeout(() => this.startBgm(newSrc, newVolume), fadeDuration * 0.6);
   }
 
@@ -1080,7 +1081,8 @@ class ChoiceMap {
 class RoundtableHold {
   /** @type {HTMLElement} */      #section;
   /** @type {AudioController} */  #audio;
-  #awoken = false;
+  #awoken     = false;
+  #lockTimer  = null;
 
   /** @param {AudioController} audio */
   constructor(audio) {
@@ -1094,8 +1096,12 @@ class RoundtableHold {
         this.#awoken = true;
         this.#section.classList.add("rt-awake");
         this.#section.scrollIntoView({ behavior: "smooth", block: "start" });
-        setTimeout(() => { document.body.style.overflow = "hidden"; }, 600);
+        this.#lockTimer = setTimeout(() => { document.body.style.overflow = "hidden"; }, 600);
         this.#audio.onUnlock(() => this.#playAudio());
+      }
+      if (this.#lockTimer !== null && entry.intersectionRatio === 0) {
+        clearTimeout(this.#lockTimer);
+        this.#lockTimer = null;
       }
     }, { threshold: [0, 0.4, 1.0] });
     io.observe(this.#section);

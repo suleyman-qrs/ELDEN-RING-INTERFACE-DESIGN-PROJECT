@@ -687,12 +687,6 @@ body {
 }
 
 .npc-topic-btn--seek {
-  margin-top: 8px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(200, 190, 160, 0.12);
-}
-
-.npc-topic-btn--seek {
   color: var(--gold);
   margin-top: 8px;
   padding-top: 14px;
@@ -878,6 +872,7 @@ body {
   top: calc(50% + 40vh + 16px);
   left: 50%;
   transform: translateX(-50%);
+  z-index: 11; /* above .erdtree-vignette (z-index: 10) */
   font-family: var(--font-display);
   font-weight: 400;
   font-size: clamp(13px, 1.5vw, 22px);

@@ -383,7 +383,7 @@ const SCENES = Object.freeze([
     bossId: "malenia",
   },
   {
-    dir: "Scenes/06_General_Radah",
+    dir: "Scenes/06_General_Radahn",
     prefix: "general_radahn",
     count: 47,
     audio: ["audio/dialogue/General Radahn, slayer of giants.wav"],
@@ -404,7 +404,7 @@ const SCENES = Object.freeze([
     count: 64,
     audio: ["audio/dialogue/And Morgott, Prince of the Omen.wav"],
     text: "And Morgott,<br>Prince of the Omen.",
-    bossId: "margitt",
+    bossId: "margit",
   },
   {
     dir: "Scenes/09_Each_Inheriting",
@@ -1022,11 +1022,11 @@ window.addEventListener("wheel", e => {
 }, { passive: false });
 
 // Also cover touch-based scroll (mobile / trackpad inertia).
-let _touchStartY = 0;
-window.addEventListener("touchstart", e => { _touchStartY = e.touches[0].clientY; }, { passive: true });
+let touchStartY = 0;
+window.addEventListener("touchstart", e => { touchStartY = e.touches[0].clientY; }, { passive: true });
 window.addEventListener("touchmove", e => {
   if (!roundtableScrollLocked || !roundtableIsActive()) return;
-  if (e.touches[0].clientY < _touchStartY) e.preventDefault(); // swiping up → scrolling down
+  if (e.touches[0].clientY < touchStartY) e.preventDefault(); // swiping up → scrolling down
 }, { passive: false });
 
 /**

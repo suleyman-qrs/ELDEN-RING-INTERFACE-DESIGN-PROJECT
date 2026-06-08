@@ -1069,7 +1069,7 @@ body {
   object-position: left bottom;
 }
 
-/* Optional foreground layer — sits in front of the character (e.g. Margitt front) */
+/* Optional foreground layer — sits in front of the character (e.g. Margit front) */
 .boss-slide__front {
   position: absolute;
   inset: 0;

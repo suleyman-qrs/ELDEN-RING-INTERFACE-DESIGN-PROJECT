@@ -129,17 +129,6 @@ class AudioController {
   }
 
   /**
-   * @param {string} newSrc
-   * @param {number} [fadeDuration=2000]
-   * @param {number} [newVolume=0.4]
-   */
-  crossfadeToBgm(newSrc, fadeDuration = 2000, newVolume = 0.4) {
-    this.stopBgm(fadeDuration);
-    this.#bgm = null; // decouple: startBgm won't hard-pause the still-fading track
-    setTimeout(() => this.startBgm(newSrc, newVolume), fadeDuration * 0.6);
-  }
-
-  /**
    * Plays multiple SFX tracks concurrently.
    * @param {string[]} srcs
    * @param {number} [volume=1]
@@ -164,30 +153,14 @@ class AudioController {
   }
 
   /**
-   * Plays SFX tracks one after another.
-   * @param {string[]} srcs
-   * @param {number} [volume=1]
-   */
-  playSfxSequence(srcs, volume = 1) {
-    if (!this.#sfxEnabled || !this.#unlocked || !srcs.length) return;
-    const [first, ...rest] = srcs;
-    const sfx = new Audio(first);
-    sfx.volume = volume;
-    sfx.play().catch(() => {});
-    if (rest.length) {
-      sfx.addEventListener("ended", () => this.playSfxSequence(rest, volume), { once: true });
-    }
-  }
-
-  /**
    * Plays dialogue tracks sequentially, optionally looping the full sequence.
    * Uses the generation counter so stopDialogue() cancels pending callbacks.
    * @param {string[]}        srcs
    * @param {boolean}         [loop=false]
-   * @param {string[]}        [_root=srcs]  Full sequence for loop restart
+   * @param {string[]}        [rootSrcs=srcs]  Full sequence for loop restart
    * @param {(() => void) | null} [onEnd]   Called once after the last track ends (non-loop only)
    */
-  playDialogueSequence(srcs, loop = false, _root = srcs, onEnd = null) {
+  playDialogueSequence(srcs, loop = false, rootSrcs = srcs, onEnd = null) {
     this.#dialogue?.pause();
     this.#dialogue = null;
     if (!this.#dialogueEnabled || !this.#unlocked || !srcs.length) {
@@ -203,10 +176,10 @@ class AudioController {
     el.play().catch(() => {});
 
     const isLast    = rest.length === 0;
-    const nextSrcs  = isLast ? (loop ? _root : null) : rest;
+    const nextSrcs  = isLast ? (loop ? rootSrcs : null) : rest;
     if (nextSrcs) {
       el.addEventListener("ended", () => {
-        if (this.#dialogueGen === gen) this.playDialogueSequence(nextSrcs, loop, _root, onEnd);
+        if (this.#dialogueGen === gen) this.playDialogueSequence(nextSrcs, loop, rootSrcs, onEnd);
       }, { once: true });
     } else if (isLast && !loop && onEnd) {
       // Last track of a non-looping sequence — fire onEnd when it finishes
@@ -598,7 +571,7 @@ function getDominantScrollDelta(e) {
    Converts vertical wheel → scene advance / rewind.
 ────────────────────────────────────────────────────── */
 
-class ErdtreeHScroll {
+class ErdtreeScenePlayer {
   /** Animation frame rate for PNG sequences. */
   static #FPS = 18;
 
@@ -926,7 +899,7 @@ class ErdtreeHScroll {
   #tick(ts) {
     if (!this.#lastTs) this.#lastTs = ts;
     const elapsed       = ts - this.#lastTs;
-    const frameDuration = 1000 / ErdtreeHScroll.#FPS;
+    const frameDuration = 1000 / ErdtreeScenePlayer.#FPS;
 
     if (elapsed >= frameDuration) {
       const frames  = Math.floor(elapsed / frameDuration);
@@ -1137,10 +1110,10 @@ function playNpcIdle({ audio, npcName, srcs }) {
 }
 
 /* ──────────────────────────────────────────────────────
-   CHOICE MAP (Phase 3)
-   Listens for clicks on the roundtable <area> hotspot.
-   "Yes" → fade to black → scroll to Erdtree sequence.
-   "No"  → smooth scroll to footer.
+   CHOICE MAP
+   Listens for clicks on Enia's zone in the Roundtable.
+   "Seek the Elden Ring" → fade to black → scroll to Erdtree sequence.
+   "Leave" → close dialog.
 ────────────────────────────────────────────────────── */
 
 class ChoiceMap {
@@ -1706,7 +1679,7 @@ class SoundControl {
 class EldenRingApp {
   /** @type {AudioController} */  #audio;
   /** @type {SideNav} */          #sidenav;
-  /** @type {ErdtreeHScroll} */   #erdtree;
+  /** @type {ErdtreeScenePlayer} */   #erdtree;
   /** @type {Element[]} */        #fadeEls;
   /** @type {HTMLElement} */      #volumeNotice;
   /** @type {HTMLElement} */      #scrollCta;
@@ -1736,7 +1709,7 @@ class EldenRingApp {
     ]);
     for (const config of NPC_CONFIGS) new RoundtableNPC(config, this.#audio);
 
-    this.#erdtree = new ErdtreeHScroll(this.#audio);
+    this.#erdtree = new ErdtreeScenePlayer(this.#audio);
 
     document.querySelectorAll(".grace-embers").forEach(c =>
       new GraceEmbers(/** @type {HTMLCanvasElement} */ (c)),

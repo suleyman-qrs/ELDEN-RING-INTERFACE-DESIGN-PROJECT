@@ -182,14 +182,18 @@ class AudioController {
   /**
    * Plays dialogue tracks sequentially, optionally looping the full sequence.
    * Uses the generation counter so stopDialogue() cancels pending callbacks.
-   * @param {string[]} srcs
-   * @param {boolean}  [loop=false]
-   * @param {string[]} [_root=srcs] - Full original sequence for loop restart
+   * @param {string[]}        srcs
+   * @param {boolean}         [loop=false]
+   * @param {string[]}        [_root=srcs]  Full sequence for loop restart
+   * @param {(() => void) | null} [onEnd]   Called once after the last track ends (non-loop only)
    */
-  playDialogueSequence(srcs, loop = false, _root = srcs) {
+  playDialogueSequence(srcs, loop = false, _root = srcs, onEnd = null) {
     this.#dialogue?.pause();
     this.#dialogue = null;
-    if (!this.#dialogueEnabled || !this.#unlocked || !srcs.length) return;
+    if (!this.#dialogueEnabled || !this.#unlocked || !srcs.length) {
+      if (!loop) onEnd?.();
+      return;
+    }
 
     const gen = ++this.#dialogueGen;
     const [first, ...rest] = srcs;
@@ -198,10 +202,16 @@ class AudioController {
     el.volume = 1;
     el.play().catch(() => {});
 
-    const nextSrcs = rest.length ? rest : (loop ? _root : null);
+    const isLast    = rest.length === 0;
+    const nextSrcs  = isLast ? (loop ? _root : null) : rest;
     if (nextSrcs) {
       el.addEventListener("ended", () => {
-        if (this.#dialogueGen === gen) this.playDialogueSequence(nextSrcs, loop, _root);
+        if (this.#dialogueGen === gen) this.playDialogueSequence(nextSrcs, loop, _root, onEnd);
+      }, { once: true });
+    } else if (isLast && !loop && onEnd) {
+      // Last track of a non-looping sequence — fire onEnd when it finishes
+      el.addEventListener("ended", () => {
+        if (this.#dialogueGen === gen) onEnd();
       }, { once: true });
     }
   }
@@ -613,6 +623,8 @@ class ErdtreeHScroll {
   #done        = false;
   #sliding     = false;
   #slideTimer  = null;
+  /** Timer handle for automatic scene advance (passive-viewer mode). */
+  #autoTimer   = null;
 
   // Boss parallax / float state
   /** Raw mouse offset from stage centre (px). */
@@ -718,6 +730,7 @@ class ErdtreeHScroll {
         }
       } else if (ratio < 0.1) {
         this.#active = false;
+        this.#cancelAutoAdvance();
         this.#subtitle.classList.remove("visible");
         this.#chapter = -1;
         this.#stopPlay();
@@ -738,6 +751,9 @@ class ErdtreeHScroll {
       if (delta === 0) return;
 
       const goingForward = delta > 0;
+
+      // Any intentional scroll cancels the auto-advance timer.
+      this.#cancelAutoAdvance();
 
       if (this.#rafId || this.#sliding) { e.preventDefault(); return; }
       if (goingForward && this.#done) return;
@@ -886,6 +902,26 @@ class ErdtreeHScroll {
     this.#rafId = null;
   }
 
+  /**
+   * Schedule an automatic advance to the next scene after audio finishes.
+   * Ignored on the final scene (it loops).
+   * @param {number} [holdMs=800] — extra pause after audio ends before advancing
+   */
+  #scheduleAutoAdvance(holdMs = 800) {
+    this.#cancelAutoAdvance();
+    const nextIdx = this.#sceneIdx + 1;
+    if (nextIdx >= SCENES.length) return; // last scene — stay forever
+    this.#autoTimer = setTimeout(() => {
+      this.#autoTimer = null;
+      if (!this.#active || this.#done) return;
+      this.#goToScene(nextIdx);
+    }, holdMs);
+  }
+
+  #cancelAutoAdvance() {
+    if (this.#autoTimer !== null) { clearTimeout(this.#autoTimer); this.#autoTimer = null; }
+  }
+
   /** @param {DOMHighResTimeStamp} ts */
   #tick(ts) {
     if (!this.#lastTs) this.#lastTs = ts;
@@ -920,15 +956,19 @@ class ErdtreeHScroll {
     if (chapterIdx < 0 || chapterIdx === this.#chapter) return;
 
     this.#chapter = chapterIdx;
+    this.#cancelAutoAdvance();
+
     this.#subtitle.innerHTML = CHAPTER_CUES[chapterIdx].text;
     this.#subtitle.classList.remove("visible");
     requestAnimationFrame(() =>
       requestAnimationFrame(() => this.#subtitle.classList.add("visible")),
     );
-    this.#audio.playDialogueSequence(
-      CHAPTER_CUES[chapterIdx].audio,
-      CHAPTER_CUES[chapterIdx].loop,
-    );
+
+    const cue      = CHAPTER_CUES[chapterIdx];
+    const isLast   = chapterIdx >= SCENES.length - 1;
+    // Auto-advance once audio finishes — except on the final looping scene.
+    const onAudioEnd = isLast ? null : () => this.#scheduleAutoAdvance();
+    this.#audio.playDialogueSequence(cue.audio, cue.loop, cue.audio, onAudioEnd);
   }
 }
 
@@ -1340,7 +1380,7 @@ const subtitle = (() => {
     typed.textContent += sentence[cIdx];
 
     const ch    = sentence[cIdx];
-    const delay = /[.!?…]/.test(ch) ? 420  // full stop — let it breathe
+    const delay = /[.!?…]/.test(ch) ? 80  // full stop — let it breathe
                 : /[,;:]/.test(ch)  ? 460  // mid-sentence pause
                 : ch === " "        ? 105  // word gap
                 :                      48; // base — matches audio pacing

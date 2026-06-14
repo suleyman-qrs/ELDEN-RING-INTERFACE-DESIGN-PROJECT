@@ -312,8 +312,37 @@ body {
    ====================================================== */
 
 .phase--biography {
+  position: relative;
+  width: 100%;
   background: var(--black);
   margin-top: 40vh;
+  /* No fixed height / overflow:hidden — the section grows with its slots, and
+     overflow:hidden would break the sticky backdrop below. */
+}
+
+/* Sticky backdrop: stays put while the narration scrolls past it.
+   The negative margin removes its flow height so the first slot starts at the
+   section top instead of one screen below it. */
+.bio-backdrop {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  margin-bottom: -100vh;
+  z-index: 0;
+}
+
+.bio-scroll {
+  position: relative;
+  z-index: 1;
+}
+
+/* One full screen of scroll per block, with the text centred in it. */
+.bio-slot {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8vw;
 }
 
 .bio-bg {
@@ -362,6 +391,17 @@ body {
     rgba(172, 138, 72, 0.55),
     transparent
   );
+}
+
+/* Keep the muted 0.82 tone through the fade reveal. Both `.fade-in` and
+   `.bio-text` are single-class selectors, so without these the base 0.82 would
+   override the hidden state and the reveal would land at full white. */
+.bio-text.fade-in {
+  opacity: 0;
+}
+
+.bio-text.fade-in.visible {
+  opacity: 0.82;
 }
 
 /* ======================================================

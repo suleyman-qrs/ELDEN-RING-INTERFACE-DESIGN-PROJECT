@@ -31,6 +31,21 @@ const TRANSITION_TIMING = Object.freeze({
   CANVAS_SLIDE_OUT:   300,
   /** Canvas slide-in duration after seeking to new scene. */
   CANVAS_SLIDE_IN:    350,
+  /** Scene-video crossfade duration — matches `.scene-video` opacity transition (0.55s). */
+  SCENE_VIDEO_FADE:   550,
+});
+
+/** Auto-advance pacing for the narration (ms).
+   Pacing is time-based so a scene can never flash past when its dialogue audio
+   fails to play — it advances on the dialogue's `ended`, but never sooner than
+   MIN_SCENE and never later than FALLBACK. */
+const NARRATION_TIMING = Object.freeze({
+  /** Floor — never advance before this, so subtitles stay readable. */
+  MIN_SCENE:      3800,
+  /** Ceiling — advance even if dialogue audio never plays or never ends. */
+  FALLBACK:       9000,
+  /** Pause after dialogue audio ends before advancing. */
+  AUDIO_END_HOLD:  800,
 });
 
 /* ──────────────────────────────────────────────────────
@@ -163,8 +178,10 @@ class AudioController {
   playDialogueSequence(srcs, loop = false, rootSrcs = srcs, onEnd = null) {
     this.#dialogue?.pause();
     this.#dialogue = null;
+    // When dialogue can't play (disabled / not yet unlocked / empty) we do NOT
+    // fire onEnd synchronously — that used to cascade the scene auto-advance and
+    // flash the whole narration past. The caller's time-based fallback advances.
     if (!this.#dialogueEnabled || !this.#unlocked || !srcs.length) {
-      if (!loop) onEnd?.();
       return;
     }
 
@@ -598,6 +615,8 @@ class ErdtreeScenePlayer {
   #slideTimer  = null;
   /** Timer handle for automatic scene advance (passive-viewer mode). */
   #autoTimer   = null;
+  /** Timestamp (performance.now) the current chapter became active. */
+  #sceneEnteredAt = 0;
 
   // Boss parallax / float state
   /** Raw mouse offset from stage centre (px). */
@@ -755,11 +774,21 @@ class ErdtreeScenePlayer {
     // Deactivate all boss overlays.
     this.#bossSlides.forEach(el => el.classList.remove("boss-slide--active"));
 
-    // Pause + deactivate all video overlays.
+    const incomingVideo = videoId ? document.getElementById(`scene-${videoId}`) : null;
+
+    // Fade out every video that isn't the incoming one. Keep it playing through
+    // the crossfade — snapping it back to frame 0 mid-fade caused a visible jump
+    // ("split"). Pause + rewind only after the opacity fade has finished.
     this.#sceneVideos.forEach(el => {
+      if (el === incomingVideo || !el.classList.contains("scene-video--active")) return;
       el.classList.remove("scene-video--active");
-      const v = el.querySelector("video");
-      if (v) { v.pause(); v.currentTime = 0; }
+      const v = /** @type {HTMLVideoElement|null} */ (el.querySelector("video"));
+      if (v) {
+        setTimeout(() => {
+          // Skip if this scene was re-activated in the meantime.
+          if (!el.classList.contains("scene-video--active")) { v.pause(); v.currentTime = 0; }
+        }, TRANSITION_TIMING.SCENE_VIDEO_FADE);
+      }
     });
 
     // Canvas: visible only for pure PNG scenes.
@@ -772,13 +801,10 @@ class ErdtreeScenePlayer {
       this.#stopBossAnimation();
     }
 
-    if (videoId) {
-      const el = document.getElementById(`scene-${videoId}`);
-      if (el) {
-        el.classList.add("scene-video--active");
-        const v = /** @type {HTMLVideoElement|null} */ (el.querySelector("video"));
-        v?.play().catch(() => {});
-      }
+    if (incomingVideo) {
+      incomingVideo.classList.add("scene-video--active");
+      const v = /** @type {HTMLVideoElement|null} */ (incomingVideo.querySelector("video"));
+      if (v) { v.currentTime = 0; v.play().catch(() => {}); }
     }
   }
 
@@ -930,6 +956,7 @@ class ErdtreeScenePlayer {
 
     this.#chapter = chapterIdx;
     this.#cancelAutoAdvance();
+    this.#sceneEnteredAt = performance.now();
 
     this.#subtitle.innerHTML = CHAPTER_CUES[chapterIdx].text;
     this.#subtitle.classList.remove("visible");
@@ -939,8 +966,23 @@ class ErdtreeScenePlayer {
 
     const cue      = CHAPTER_CUES[chapterIdx];
     const isLast   = chapterIdx >= SCENES.length - 1;
-    // Auto-advance once audio finishes — except on the final looping scene.
-    const onAudioEnd = isLast ? null : () => this.#scheduleAutoAdvance();
+
+    if (!isLast) {
+      // Ceiling: advance even if dialogue audio never plays or never ends, so a
+      // silent/blocked scene still progresses instead of stalling or flashing.
+      this.#scheduleAutoAdvance(NARRATION_TIMING.FALLBACK);
+    }
+
+    // When dialogue audio ends, advance after a short hold — but never sooner
+    // than the readable floor, so an instantly-ending track can't flash past.
+    const onAudioEnd = isLast ? null : () => {
+      const elapsed = performance.now() - this.#sceneEnteredAt;
+      const wait = Math.max(
+        NARRATION_TIMING.AUDIO_END_HOLD,
+        NARRATION_TIMING.MIN_SCENE - elapsed,
+      );
+      this.#scheduleAutoAdvance(wait);
+    };
     this.#audio.playDialogueSequence(cue.audio, cue.loop, cue.audio, onAudioEnd);
   }
 }
@@ -1213,7 +1255,7 @@ class ChoiceMap {
     this.#fadeEl.classList.add("active");
     setTimeout(() => {
       document.getElementById("erdtree-scroll")?.scrollIntoView({ behavior: "instant", block: "start" });
-      this.#audio.startBgm("audio/music/scroll music.wav", 0.35);
+      this.#audio.startBgm("audio/music/gameplay-trailer-from-shadow-of-the-erdtree.mp3", 0.35);
       setTimeout(() => this.#fadeEl.classList.remove("active"), 50);
     }, 750);
   }

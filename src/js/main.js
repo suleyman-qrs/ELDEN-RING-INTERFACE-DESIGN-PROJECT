@@ -16,9 +16,9 @@ const FADE_STEP_MS = 50;
 /** Timing constants for the NPC dialogue flow (ms). */
 const DIALOGUE_TIMING = Object.freeze({
   /** Wait for dialog opacity transition before showing subtitle. */
-  DIALOG_FADE:      370,
+  DIALOG_FADE:      300,
   /** Delay before fading dialog back in after audio ends or is skipped. */
-  SUBTITLE_RESTORE: 300,
+  SUBTITLE_RESTORE: 100,
   /** Delay before arming the skip-click listener (avoids catching the triggering click). */
   SKIP_ARM:         200,
 });
@@ -44,6 +44,8 @@ class AudioController {
   /** @type {HTMLAudioElement | null} */ #bgm = null;
   /** @type {HTMLAudioElement | null} */ #dialogue = null;
   /** @type {HTMLAudioElement[]} */      #sfxList = [];
+  /** @type {HTMLAudioElement[]} */      #ambientList = [];  // looping ambient SFX
+  /** @type {{ srcs: string[], volume: number } | null} */ #ambientSpec = null;
   #unlocked    = false;
   #pendingBgm  = false;
   #dialogueGen = 0;
@@ -153,14 +155,18 @@ class AudioController {
   /**
    * Plays dialogue tracks sequentially, optionally looping the full sequence.
    * Uses the generation counter so stopDialogue() cancels pending callbacks.
-   * @param {string[]} srcs
-   * @param {boolean}  [loop=false]
-   * @param {string[]} [rootSrcs=srcs] - Full original sequence for loop restart
+   * @param {string[]}        srcs
+   * @param {boolean}         [loop=false]
+   * @param {string[]}        [rootSrcs=srcs]  Full sequence for loop restart
+   * @param {(() => void) | null} [onEnd]   Called once after the last track ends (non-loop only)
    */
-  playDialogueSequence(srcs, loop = false, rootSrcs = srcs) {
+  playDialogueSequence(srcs, loop = false, rootSrcs = srcs, onEnd = null) {
     this.#dialogue?.pause();
     this.#dialogue = null;
-    if (!this.#dialogueEnabled || !this.#unlocked || !srcs.length) return;
+    if (!this.#dialogueEnabled || !this.#unlocked || !srcs.length) {
+      if (!loop) onEnd?.();
+      return;
+    }
 
     const gen = ++this.#dialogueGen;
     const [first, ...rest] = srcs;
@@ -169,10 +175,16 @@ class AudioController {
     el.volume = 1;
     el.play().catch(() => {});
 
-    const nextSrcs = rest.length ? rest : (loop ? rootSrcs : null);
+    const isLast    = rest.length === 0;
+    const nextSrcs  = isLast ? (loop ? rootSrcs : null) : rest;
     if (nextSrcs) {
       el.addEventListener("ended", () => {
-        if (this.#dialogueGen === gen) this.playDialogueSequence(nextSrcs, loop, rootSrcs);
+        if (this.#dialogueGen === gen) this.playDialogueSequence(nextSrcs, loop, rootSrcs, onEnd);
+      }, { once: true });
+    } else if (isLast && !loop && onEnd) {
+      // Last track of a non-looping sequence — fire onEnd when it finishes
+      el.addEventListener("ended", () => {
+        if (this.#dialogueGen === gen) onEnd();
       }, { once: true });
     }
   }
@@ -253,12 +265,42 @@ class AudioController {
   }
 
   /**
+   * Plays looping ambient SFX (e.g. roundtable ambience).
+   * Stores the spec so it can be restarted when SFX is re-enabled.
+   * @param {string[]} srcs
+   * @param {number} [volume=0.7]
+   */
+  playAmbientSfx(srcs, volume = 0.7) {
+    this.#ambientSpec = { srcs, volume };
+    this.#stopAmbient();
+    if (!this.#sfxEnabled || !this.#unlocked || !srcs.length) return;
+    for (const src of srcs) {
+      const el = new Audio(src);
+      el.loop   = true;
+      el.volume = volume;
+      el.play().catch(() => {});
+      this.#ambientList.push(el);
+    }
+  }
+
+  #stopAmbient() {
+    for (const el of this.#ambientList) { el.pause(); el.src = ""; }
+    this.#ambientList = [];
+  }
+
+  /**
    * Enable or disable SFX. Disabling stops all active SFX immediately.
+   * Re-enabling restarts any ambient SFX that was playing.
    * @param {boolean} on
    */
   setSfxEnabled(on) {
     this.#sfxEnabled = on;
-    if (!on) this.stopSfx();
+    if (!on) {
+      this.stopSfx();
+      this.#stopAmbient();
+    } else if (this.#ambientSpec) {
+      this.playAmbientSfx(this.#ambientSpec.srcs, this.#ambientSpec.volume);
+    }
   }
 }
 
@@ -324,7 +366,7 @@ const SCENES = Object.freeze([
     bossId: "malenia",
   },
   {
-    dir: "Scenes/06_General_Radah",
+    dir: "Scenes/06_General_Radahn",
     prefix: "general_radahn",
     count: 47,
     audio: ["audio/dialogue/General Radahn, slayer of giants.wav"],
@@ -345,7 +387,7 @@ const SCENES = Object.freeze([
     count: 64,
     audio: ["audio/dialogue/And Morgott, Prince of the Omen.wav"],
     text: "And Morgott,<br>Prince of the Omen.",
-    bossId: "margitt",
+    bossId: "margit",
   },
   {
     dir: "Scenes/09_Each_Inheriting",
@@ -554,6 +596,8 @@ class ErdtreeScenePlayer {
   #done        = false;
   #sliding     = false;
   #slideTimer  = null;
+  /** Timer handle for automatic scene advance (passive-viewer mode). */
+  #autoTimer   = null;
 
   // Boss parallax / float state
   /** Raw mouse offset from stage centre (px). */
@@ -659,6 +703,7 @@ class ErdtreeScenePlayer {
         }
       } else if (ratio < 0.1) {
         this.#active = false;
+        this.#cancelAutoAdvance();
         this.#subtitle.classList.remove("visible");
         this.#chapter = -1;
         this.#stopPlay();
@@ -679,6 +724,9 @@ class ErdtreeScenePlayer {
       if (delta === 0) return;
 
       const goingForward = delta > 0;
+
+      // Any intentional scroll cancels the auto-advance timer.
+      this.#cancelAutoAdvance();
 
       if (this.#rafId || this.#sliding) { e.preventDefault(); return; }
       if (goingForward && this.#done) return;
@@ -827,6 +875,26 @@ class ErdtreeScenePlayer {
     this.#rafId = null;
   }
 
+  /**
+   * Schedule an automatic advance to the next scene after audio finishes.
+   * Ignored on the final scene (it loops).
+   * @param {number} [holdMs=800] — extra pause after audio ends before advancing
+   */
+  #scheduleAutoAdvance(holdMs = 800) {
+    this.#cancelAutoAdvance();
+    const nextIdx = this.#sceneIdx + 1;
+    if (nextIdx >= SCENES.length) return; // last scene — stay forever
+    this.#autoTimer = setTimeout(() => {
+      this.#autoTimer = null;
+      if (!this.#active || this.#done) return;
+      this.#goToScene(nextIdx);
+    }, holdMs);
+  }
+
+  #cancelAutoAdvance() {
+    if (this.#autoTimer !== null) { clearTimeout(this.#autoTimer); this.#autoTimer = null; }
+  }
+
   /** @param {DOMHighResTimeStamp} ts */
   #tick(ts) {
     if (!this.#lastTs) this.#lastTs = ts;
@@ -861,15 +929,19 @@ class ErdtreeScenePlayer {
     if (chapterIdx < 0 || chapterIdx === this.#chapter) return;
 
     this.#chapter = chapterIdx;
+    this.#cancelAutoAdvance();
+
     this.#subtitle.innerHTML = CHAPTER_CUES[chapterIdx].text;
     this.#subtitle.classList.remove("visible");
     requestAnimationFrame(() =>
       requestAnimationFrame(() => this.#subtitle.classList.add("visible")),
     );
-    this.#audio.playDialogueSequence(
-      CHAPTER_CUES[chapterIdx].audio,
-      CHAPTER_CUES[chapterIdx].loop,
-    );
+
+    const cue      = CHAPTER_CUES[chapterIdx];
+    const isLast   = chapterIdx >= SCENES.length - 1;
+    // Auto-advance once audio finishes — except on the final looping scene.
+    const onAudioEnd = isLast ? null : () => this.#scheduleAutoAdvance();
+    this.#audio.playDialogueSequence(cue.audio, cue.loop, cue.audio, onAudioEnd);
   }
 }
 
@@ -888,7 +960,7 @@ class SideNav {
   constructor() {
     this.#nav     = /** @type {HTMLElement} */ (document.getElementById("sidenav"));
     this.#heroEl  = /** @type {HTMLElement} */ (document.getElementById("hero"));
-    this.#dots    = Array.from(this.#nav.querySelectorAll(".nav-dot"));
+    this.#dots    = Array.from(this.#nav.querySelectorAll(".sidenav__dot"));
     this.#targets = this.#dots.map(d =>
       document.getElementById(/** @type {HTMLElement} */ (d).dataset.target ?? ""),
     );
@@ -918,6 +990,77 @@ class SideNav {
 }
 
 /**
+ * When true, downward wheel/touch scroll is blocked so the user can't
+ * accidentally drift into the Erdtree animation from the roundtable.
+ * Released only when the player intentionally clicks "Seek the Elden Ring".
+ */
+let roundtableScrollLocked = false;
+
+/**
+ * Returns true when the roundtable section is the current active viewport section
+ * (its top edge is within ±40% of viewport height from the top of the viewport).
+ * Used to scope the downward-scroll guard so it doesn't block scroll from
+ * biography → roundtable when the user scrolls back down after going up.
+ */
+function roundtableIsActive() {
+  const rect = document.getElementById("roundtable")?.getBoundingClientRect();
+  if (!rect) return false;
+  // Only consider the roundtable "active" when its top edge is within ±12% of
+  // the viewport height from the top — i.e. the user is settled at this section,
+  // not still scrolling towards it from biography.
+  const threshold = window.innerHeight * 0.12;
+  return rect.top > -threshold && rect.top < threshold;
+}
+
+// Accumulated upward scroll needed to escape the roundtable lock.
+const UPWARD_ESCAPE_THRESHOLD = 400;
+let _upwardEscapeDelta = 0;
+
+// Single passive:false listener installed once — cheap when flag is false.
+window.addEventListener("wheel", e => {
+  if (!roundtableScrollLocked || !roundtableIsActive()) {
+    _upwardEscapeDelta = 0;
+    return;
+  }
+  const dy = e.deltaY ?? 0;
+  if (dy > 0) {
+    // Downward — always block
+    e.preventDefault();
+    _upwardEscapeDelta = 0;
+    return;
+  }
+  // Upward — accumulate; only release after threshold
+  _upwardEscapeDelta += Math.abs(dy);
+  if (_upwardEscapeDelta < UPWARD_ESCAPE_THRESHOLD) e.preventDefault();
+}, { passive: false });
+
+// Also cover touch-based scroll (mobile / trackpad inertia).
+let touchStartY = 0;
+window.addEventListener("touchstart", e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+window.addEventListener("touchmove", e => {
+  if (!roundtableScrollLocked || !roundtableIsActive()) return;
+  if (e.touches[0].clientY < touchStartY) e.preventDefault(); // swiping up → scrolling down
+}, { passive: false });
+
+/**
+ * Tracks which NPCs the player has spoken to at least once.
+ * Keys match `data-npc-track` attribute values on initial speak buttons.
+ * @type {Set<string>}
+ */
+const spokenNpcs = new Set();
+
+/** All NPC ids that must be greeted before departing. */
+const ALL_NPC_IDS = Object.freeze(["enia", "d", "gideon", "rogier"]);
+
+/** Human-readable names keyed by NPC id. */
+const NPC_NAMES = Object.freeze({
+  enia:   "Enia, the Finger Reader",
+  d:      "D, Hunter of the Dead",
+  gideon: "Gideon Ofnir, the All-Knowing",
+  rogier: "Sorcerer Rogier",
+});
+
+/**
  * Fades an NPC dialog, shows the subtitle, plays the audio, then restores.
  * Shared by ChoiceMap and RoundtableNPC to avoid duplicated logic.
  * @param {{
@@ -937,7 +1080,7 @@ function playNpcTopic({ dialog, audio, npcName, srcs, subtitleLine, unlockId = n
     if (hasRestored) return;
     hasRestored = true;
     subtitle.hide();
-    if (unlockId) document.getElementById(unlockId)?.removeAttribute("hidden");
+    if (unlockId) unlockId.split(",").forEach(id => document.getElementById(id.trim())?.removeAttribute("hidden"));
     setTimeout(() => dialog.classList.remove("npc-dialog--faded"), DIALOGUE_TIMING.SUBTITLE_RESTORE);
   };
   const skipAndRestore = () => {
@@ -955,6 +1098,15 @@ function playNpcTopic({ dialog, audio, npcName, srcs, subtitleLine, unlockId = n
       DIALOGUE_TIMING.SKIP_ARM,
     );
   }, DIALOGUE_TIMING.DIALOG_FADE);
+}
+
+/**
+ * Play idle audio (no subtitle fade-in, no unlock) when reopening an NPC dialog.
+ * @param {{ audio: AudioController, npcName: string, srcs: string[] }} opts
+ */
+function playNpcIdle({ audio, npcName, srcs }) {
+  subtitle.show(npcName, "");
+  audio.playDialogueLine(srcs, () => subtitle.hide());
 }
 
 /* ──────────────────────────────────────────────────────
@@ -1002,21 +1154,45 @@ class ChoiceMap {
     this.#dialog.querySelectorAll(".npc-topic-btn[data-audio]").forEach(btn => {
       btn.addEventListener("click", e => {
         e.preventDefault();
-        const el   = /** @type {HTMLElement} */ (btn);
+        const el    = /** @type {HTMLElement} */ (btn);
+        const track = el.dataset.npcTrack;
+        if (track) spokenNpcs.add(track);
         const srcs = (el.dataset.audio ?? "").split(",").map(s => s.trim()).filter(Boolean);
         const line = el.dataset.subtitle ?? btn.textContent?.trim() ?? "";
         playNpcTopic({ dialog: this.#dialog, audio: this.#audio, npcName: "Enia, the Finger Reader", srcs, subtitleLine: line });
       });
     });
 
-    // "Seek the Elden Ring" — close dialog then transition
+    // "Seek the Elden Ring" — check all NPCs spoken to, then transition
     this.#dialog.querySelector("[data-action='seek-elden-ring']")?.addEventListener("click", e => {
       e.preventDefault();
-      this.#dialog.close();
-      eniaActive = false;
-      sceneZoom.zoomOut();
-      document.body.style.overflow = "";
-      this.#transitionToNarration();
+      const missed = ALL_NPC_IDS.filter(id => !spokenNpcs.has(id));
+      if (missed.length > 0) {
+        // Show confirmation — list the NPCs not yet spoken to
+        const confirmDialog = /** @type {HTMLDialogElement} */ (document.getElementById("dialog-seek-confirm"));
+        const missedEl = document.getElementById("seek-confirm-missed");
+        if (missedEl) missedEl.textContent = missed.map(id => NPC_NAMES[id]).join(" · ");
+
+        const doDepart = () => {
+          roundtableScrollLocked = false;
+          confirmDialog.close();
+          this.#dialog.close();
+          eniaActive = false;
+          sceneZoom.zoomOut();
+          this.#transitionToNarration();
+        };
+
+        document.getElementById("seek-confirm-yes")?.addEventListener("click", doDepart, { once: true });
+        document.getElementById("seek-confirm-no")?.addEventListener("click", () => confirmDialog.close(), { once: true });
+        confirmDialog.addEventListener("cancel", () => confirmDialog.close(), { once: true });
+        confirmDialog.showModal();
+      } else {
+        roundtableScrollLocked = false;
+        this.#dialog.close();
+        eniaActive = false;
+        sceneZoom.zoomOut();
+        this.#transitionToNarration();
+      }
     });
 
     // Leave button
@@ -1068,16 +1244,16 @@ class RoundtableHold {
         this.#awoken = true;
         this.#section.classList.add("rt-awake");
         this.#section.scrollIntoView({ behavior: "smooth", block: "start" });
-        setTimeout(() => { document.body.style.overflow = "hidden"; }, 600);
+        roundtableScrollLocked = true;
         this.#audio.onUnlock(() => this.#playAudio());
       }
-    }, { threshold: [0, 0.4, 1.0] });
+    }, { threshold: [0.4] });
     io.observe(this.#section);
   }
 
   #playAudio() {
     this.#audio.startBgm("audio/music/1-08 Roundtable Hold.mp3", 0.4);
-    this.#audio.playSfxSimultaneous(
+    this.#audio.playAmbientSfx(
       ["audio/sfx/walking.wav", "audio/sfx/Roundtable sfx.wav"],
       0.7,
     );
@@ -1090,27 +1266,102 @@ class RoundtableHold {
 ────────────────────────────────────────────────────── */
 
 /**
- * Subtitle overlay — singleton; caches DOM refs on first access.
- * @type {{ show(npcName: string, line: string): void, hide(): void }}
+ * NPC name → preload element id.
+ * Parcel rewrites the src in HTML; we read the resolved URL at runtime.
  */
+const NPC_PORTRAIT_EL = Object.freeze({
+  "Enia, the Finger Reader":       "portrait-src-enia",
+  "D, Hunter of the Dead":         "portrait-src-d",
+  "Gideon Ofnir, the All-Knowing": "portrait-src-gideon",
+  "Sorcerer Rogier":               "portrait-src-rogier",
+});
+
 const subtitle = (() => {
-  /** @type {{ el: HTMLElement, name: HTMLElement, text: HTMLElement } | null} */
+  /** @type {{ el: HTMLElement, name: HTMLElement, typed: HTMLElement, cursor: HTMLElement, portrait: HTMLImageElement } | null} */
   let cache = null;
+
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let typingTimer = null;
 
   function resolve() {
     if (cache) return cache;
-    const el   = document.getElementById("rt-subtitle");
-    const name = el?.querySelector(".rt-subtitle__name");
-    const text = el?.querySelector(".rt-subtitle__text");
-    if (el && name && text) {
+    const el      = document.getElementById("rt-subtitle");
+    const name    = el?.querySelector(".rt-subtitle__name");
+    const typed   = el?.querySelector(".rt-subtitle__typed");
+    const cursor  = el?.querySelector(".rt-subtitle__cursor");
+    const portrait = document.getElementById("rt-subtitle-portrait");
+    if (el && name && typed && cursor && portrait) {
       cache = {
-        el:   /** @type {HTMLElement} */ (el),
-        name: /** @type {HTMLElement} */ (name),
-        text: /** @type {HTMLElement} */ (text),
+        el:       /** @type {HTMLElement} */      (el),
+        name:     /** @type {HTMLElement} */      (name),
+        typed:    /** @type {HTMLElement} */      (typed),
+        cursor:   /** @type {HTMLElement} */      (cursor),
+        portrait: /** @type {HTMLImageElement} */ (portrait),
       };
     }
     return cache;
   }
+
+  function cancelTyping() {
+    if (typingTimer !== null) { clearTimeout(typingTimer); typingTimer = null; }
+  }
+
+  /**
+   * Split text into sentences on . ! ? boundaries.
+   * Keeps the punctuation with its sentence.
+   * @param {string} text
+   * @returns {string[]}
+   */
+  function splitSentences(text) {
+    const parts = text.match(/[^.!?…]+[.!?…]+\s*/g);
+    if (!parts) return [text];
+    const sentences = parts.map(s => s.trim()).filter(Boolean);
+    // Sum consumed characters from the raw (un-trimmed) parts to find any trailing fragment
+    const consumed = parts.reduce((n, p) => n + p.length, 0);
+    const remainder = text.slice(consumed).trim();
+    if (remainder) sentences.push(remainder);
+    return sentences.length ? sentences : [text];
+  }
+
+  /**
+   * Type one sentence character by character, then either pause and show the
+   * next sentence (for multi-sentence lines) or mark the cursor done.
+   * @param {HTMLElement}  typed
+   * @param {HTMLElement}  cursor
+   * @param {string[]}     sentences   all sentences in this line
+   * @param {number}       sIdx        current sentence index
+   * @param {number}       cIdx        current char index within current sentence
+   */
+  function typeNext(typed, cursor, sentences, sIdx, cIdx) {
+    const sentence = sentences[sIdx];
+    if (cIdx >= sentence.length) {
+      // Sentence finished
+      if (sIdx + 1 < sentences.length) {
+        // Pause between sentences, then clear and type the next one
+        typingTimer = setTimeout(() => {
+          typed.textContent = "";
+          typeNext(typed, cursor, sentences, sIdx + 1, 0);
+        }, 900);
+      } else {
+        // All done — blink cursor to signal player can skip/continue
+        cursor.classList.add("rt-subtitle__cursor--done");
+        typingTimer = null;
+      }
+      return;
+    }
+
+    typed.textContent += sentence[cIdx];
+
+    const ch    = sentence[cIdx];
+    const delay = /[.!?…]/.test(ch) ? 80  // full stop — let it breathe
+                : /[,;:]/.test(ch)  ? 460  // mid-sentence pause
+                : ch === " "        ? 105  // word gap
+                :                      48; // base — matches audio pacing
+    typingTimer = setTimeout(() => typeNext(typed, cursor, sentences, sIdx, cIdx + 1), delay);
+  }
+
+  /** Lines longer than this get split into sentences. */
+  const SPLIT_THRESHOLD = 120;
 
   return {
     /**
@@ -1120,12 +1371,28 @@ const subtitle = (() => {
     show(npcName, line) {
       const s = resolve();
       if (!s) return;
+      cancelTyping();
+
+      // Portrait — read the Parcel-resolved src from the preload element
+      const preloadId = NPC_PORTRAIT_EL[npcName];
+      const preloadEl = preloadId ? /** @type {HTMLImageElement|null} */ (document.getElementById(preloadId)) : null;
+      const src = preloadEl?.src ?? "";
+      s.portrait.src = src;
+      s.portrait.style.display = src ? "block" : "none";
+
       s.name.textContent = npcName;
-      s.text.textContent = line;
+      s.typed.textContent = "";
+      s.cursor.classList.remove("rt-subtitle__cursor--done");
       s.el.classList.add("rt-subtitle--visible");
+
+      const sentences = line.length > SPLIT_THRESHOLD ? splitSentences(line) : [line];
+      typeNext(s.typed, s.cursor, sentences, 0, 0);
     },
     hide() {
-      resolve()?.el.classList.remove("rt-subtitle--visible");
+      cancelTyping();
+      const s = resolve();
+      if (!s) return;
+      s.el.classList.remove("rt-subtitle--visible");
     },
   };
 })();
@@ -1204,6 +1471,7 @@ class RoundtableNPC {
     };
 
     let active = false;
+    let hasSpoken = false;
     zone.addEventListener("mouseenter", () => img.classList.add("rt-npc--glow"));
     zone.addEventListener("mouseleave", () => { if (!active) img.classList.remove("rt-npc--glow"); });
 
@@ -1212,6 +1480,15 @@ class RoundtableNPC {
       img.classList.add("rt-npc--glow");
       sceneZoom.zoomTo(zoomX, zoomY);
       dialog.showModal();
+      // Play idle audio on return visits if the dialog has data-idle-audio set
+      if (hasSpoken) {
+        const idleAttr = dialog.dataset.idleAudio;
+        if (idleAttr) {
+          const idleSrcs = idleAttr.split(",").map(s => s.trim()).filter(Boolean);
+          playNpcIdle({ audio: this.#audio, npcName: this.#name, srcs: idleSrcs });
+        }
+      }
+      hasSpoken = true;
       // Focus first option so Enter immediately works
       /** @type {HTMLElement | null} */ (dialog.querySelector(".npc-topic-btn"))?.focus();
     });
@@ -1220,6 +1497,8 @@ class RoundtableNPC {
       btn.addEventListener("click", e => {
         e.preventDefault();
         const el       = /** @type {HTMLElement} */ (btn);
+        const track    = el.dataset.npcTrack;
+        if (track) spokenNpcs.add(track);
         const srcs     = (el.dataset.audio ?? "").split(",").map(s => s.trim()).filter(Boolean);
         const line     = el.dataset.subtitle ?? btn.textContent?.trim() ?? "";
         const unlockId = el.dataset.unlocks ?? null;
@@ -1251,7 +1530,7 @@ class RoundtableNPC {
  */
 
 class GraceEmbers {
-  static #MAX = 40;
+  static #MAX = 90;
 
   /** @type {HTMLCanvasElement} */        #canvas;
   /** @type {CanvasRenderingContext2D} */ #ctx;
@@ -1284,19 +1563,19 @@ class GraceEmbers {
    * @returns {Particle}
    */
   #newParticle(distributed = false) {
-    const size = 1.2 + Math.random() * 2.5;
+    const size = 0.7 + Math.random() * 1.6;
     return {
       x:          Math.random() * this.#width,
-      y:          distributed ? Math.random() * this.#height : this.#height + size * 6,
+      y:          distributed ? Math.random() * this.#height : -size * 6,
       size,
-      vy:         16 + Math.random() * 30,
-      driftAmp:   10 + Math.random() * 20,
-      driftFreq:  0.2 + Math.random() * 0.5,
+      vy:         10 + Math.random() * 20,
+      driftAmp:   8 + Math.random() * 18,
+      driftFreq:  0.15 + Math.random() * 0.4,
       driftPhase: Math.random() * Math.PI * 2,
-      alpha:      distributed ? Math.random() * 0.45 : 0,
-      maxAlpha:   0.3 + Math.random() * 0.4,
+      alpha:      distributed ? Math.random() * 0.7 : 0,
+      maxAlpha:   0.5 + Math.random() * 0.35,
       fadeDir:    distributed && Math.random() > 0.5 ? -1 : 1,
-      fadeSpeed:  0.2 + Math.random() * 0.3,
+      fadeSpeed:  0.06 + Math.random() * 0.08,  // slow fade — survives to bottom
     };
   }
 
@@ -1307,13 +1586,13 @@ class GraceEmbers {
    * @param {number} t   running time in seconds (for drift sine)
    */
   #updateParticle(p, dt, t) {
-    p.y -= p.vy * dt;
+    p.y += p.vy * dt;                        // fall downward
     p.x += Math.sin(t * p.driftFreq * Math.PI * 2 + p.driftPhase) * p.driftAmp * dt;
     p.alpha += p.fadeSpeed * p.fadeDir * dt;
     if (p.alpha >= p.maxAlpha) { p.alpha = p.maxAlpha; p.fadeDir = -1; }
     if (p.alpha <= 0 && p.fadeDir < 0) return false;
     p.alpha = Math.max(0, p.alpha);
-    return p.y >= -p.size * 8;
+    return p.y <= this.#height + p.size * 8; // remove once past bottom
   }
 
   /**
@@ -1322,10 +1601,10 @@ class GraceEmbers {
    */
   #drawParticle(p) {
     const ctx = this.#ctx;
-    const r   = p.size * 5;
+    const r   = p.size * 7;
     const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-    grd.addColorStop(0,   `rgba(255, 225, 120, ${p.alpha})`);
-    grd.addColorStop(0.3, `rgba(212, 165,  40, ${p.alpha * 0.65})`);
+    grd.addColorStop(0,   `rgba(255, 235, 140, ${p.alpha})`);
+    grd.addColorStop(0.3, `rgba(220, 172,  48, ${p.alpha * 0.7})`);
     grd.addColorStop(1,   `rgba(160, 100,  10, 0)`);
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
@@ -1333,8 +1612,8 @@ class GraceEmbers {
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size * 0.55, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 250, 210, ${Math.min(p.alpha * 2.2, 1)})`;
+    ctx.arc(p.x, p.y, p.size * 0.65, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 252, 220, ${Math.min(p.alpha * 2.8, 1)})`;
     ctx.fill();
   }
 
@@ -1347,7 +1626,7 @@ class GraceEmbers {
 
     this.#ctx.clearRect(0, 0, this.#width, this.#height);
 
-    if (this.#particles.length < GraceEmbers.#MAX && Math.random() < dt * 4) {
+    if (this.#particles.length < GraceEmbers.#MAX && Math.random() < dt * 9) {
       this.#particles.push(this.#newParticle(false));
     }
 
@@ -1415,6 +1694,13 @@ class EldenRingApp {
     new ChoiceMap(this.#audio);
     new SoundControl(this.#audio);
 
+    // Tutorial panel — dismiss on close, unlock Enia's seek button
+    document.getElementById("rt-tutorial-close")?.addEventListener("click", () => {
+      const panel = document.getElementById("rt-tutorial");
+      panel?.classList.add("rt-tutorial--dismissed");
+      document.getElementById("npc-enia-topic-seek")?.removeAttribute("hidden");
+    });
+
     /** @type {readonly NpcConfig[]} */
     const NPC_CONFIGS = Object.freeze([
       { zoneId: "rt-zone-d",      imgId: "rt-img-d",      dialogId: "npc-dialog-d",      npcName: "D, Hunter of the Dead",         zoomX: 22, zoomY: 68 },
@@ -1434,9 +1720,49 @@ class EldenRingApp {
     this.#scrollCta    = /** @type {HTMLElement} */ (document.querySelector(".scroll-cta"));
     this.#heroEl       = /** @type {HTMLElement} */ (document.getElementById("hero"));
 
+    this.#initIntroModal();
+
     window.addEventListener("scroll", () => this.#scheduleUpdate(), { passive: true });
     window.addEventListener("resize", () => this.#update(), { passive: true });
     this.#update();
+  }
+
+  /** Show the narrative intro modal on first downward scroll from the hero. */
+  #initIntroModal() {
+    const modal  = /** @type {HTMLElement|null} */ (document.getElementById("intro-modal"));
+    const enterBtn = document.getElementById("intro-modal-enter");
+    if (!modal || !enterBtn) return;
+
+    let triggered = false;
+
+    const dismiss = () => {
+      modal.classList.remove("intro-modal--visible");
+      modal.addEventListener("transitionend", () => { modal.hidden = true; }, { once: true });
+    };
+
+    const show = () => {
+      if (triggered) return;
+      triggered = true;
+      modal.hidden = false;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => modal.classList.add("intro-modal--visible"));
+      });
+    };
+
+    // Fire on first downward scroll past 5% of the hero height
+    const onScroll = () => {
+      if (window.scrollY > this.#heroEl.offsetHeight * 0.05) {
+        show();
+        window.removeEventListener("scroll", onScroll);
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    enterBtn.addEventListener("click", dismiss);
+    // Keyboard: Enter or Space also closes
+    enterBtn.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); dismiss(); }
+    });
   }
 
   #scheduleUpdate() {

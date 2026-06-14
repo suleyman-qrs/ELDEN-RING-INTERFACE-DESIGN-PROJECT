@@ -16,47 +16,75 @@
     ></video>
 
     <!-- NPC character layers -->
-    <img id="rt-img-d"      class="rt-layer rt-layer--npc" src="images/2_elden_ring_roundtable_hold_D.png"      alt="" />
-    <img id="rt-img-gideon" class="rt-layer rt-layer--npc" src="images/3_elden_ring_roundtable_hold_Gideon.png" alt="" />
+    <img id="rt-img-d"      class="rt-layer rt-layer--npc" src="images/2_elden_ring_roundtable_hold_d.png"      alt="" />
+    <img id="rt-img-gideon" class="rt-layer rt-layer--npc" src="images/3_elden_ring_roundtable_hold_gideon.png" alt="" />
     <img id="rt-img-rogier" class="rt-layer rt-layer--npc" src="images/4_elden_ring_roundtable_hold_rogier.png" alt="" />
     <img id="rt-img-enia"   class="rt-layer rt-layer--npc" src="images/1_elden_ring_roundtable_hold_crone.png"  alt="" />
 
     <!-- Table foreground layer — in front of all characters, passes clicks through -->
-    <img class="rt-layer rt-layer--base rt-layer--no-events" src="images/5_elden_ring_roundtable_hold_Table.png" alt="" />
+    <img class="rt-layer rt-layer--base rt-layer--no-events" src="images/5_elden_ring_roundtable_hold_table.png" alt="" />
 
     <!-- Invisible click/hover zones positioned over each character -->
     <button class="rt-npc-zone" id="rt-zone-gideon"
-      style="left:10%; top:49%; width:13%; height:42%;"
       aria-label="Speak with Gideon Ofnir"
       aria-haspopup="dialog"
     ></button>
     <button class="rt-npc-zone" id="rt-zone-d"
-      style="left:16%; top:49%; width:15%; height:39%;"
       aria-label="Speak with D, Hunter of the Dead"
       aria-haspopup="dialog"
     ></button>
     <!-- Rogier stops at 71% so he doesn't overlap Enia -->
     <button class="rt-npc-zone" id="rt-zone-rogier"
-      style="left:58%; top:49%; width:13%; height:38%;"
       aria-label="Speak with Sorcerer Rogier"
       aria-haspopup="dialog"
     ></button>
     <!-- Enia starts at 71% to the right of Rogier -->
     <button class="rt-npc-zone" id="rt-zone-enia"
-      style="left:71%; top:34%; width:25%; height:66%;"
       aria-label="Speak with Enia"
       aria-haspopup="dialog"
     ></button>
   </div>
 
   <div class="rt-vignette" aria-hidden="true"></div>
-  <div class="rt-hint">
+
+  <!-- Tutorial panel — dismissed once the player reads and closes it -->
+  <div id="rt-tutorial" class="rt-tutorial" role="note" aria-label="Guidance of Grace">
+    <p class="rt-tutorial__heading">Guidance of Grace</p>
+    <span class="rt-tutorial__rule" aria-hidden="true"></span>
+    <p class="rt-tutorial__body">
+      You stand within the <em>Roundtable Hold</em> — a refuge beyond the Lands Between,<br>
+      where the Tarnished gather at the behest of grace.
+      <br><br>
+      Those assembled here hold counsel and the wisdom of ages past.<br>
+      Approach and speak with them.
+      <br><br>
+      When you are ready, seek audience with <em>Enia, the Finger Reader</em>.<br>
+      She shall open the way forward.
+    </p>
+    <span class="rt-tutorial__rule" aria-hidden="true"></span>
+    <button class="rt-tutorial__close" id="rt-tutorial-close" aria-label="Understood, close guidance">
+      Understood
+    </button>
+  </div>
+
+  <div class="rt-hint" aria-hidden="true">
     <span>Approach</span>
   </div>
 
+  <!-- NPC portrait preloads — src rewritten by Parcel; JS reads them at runtime -->
+  <img id="portrait-src-enia"   class="rt-portrait-preload" src="images/dialogue_enia.png"   alt="" aria-hidden="true">
+  <img id="portrait-src-d"      class="rt-portrait-preload" src="images/dialogue_d.png"      alt="" aria-hidden="true">
+  <img id="portrait-src-gideon" class="rt-portrait-preload" src="images/dialogue_gideon.png" alt="" aria-hidden="true">
+  <img id="portrait-src-rogier" class="rt-portrait-preload" src="images/dialogue_rogier.png" alt="" aria-hidden="true">
+
   <!-- Subtitle overlay — shown during NPC dialogue -->
   <div id="rt-subtitle" class="rt-subtitle" aria-live="polite" aria-atomic="true">
-    <span class="rt-subtitle__name"></span>
-    <p class="rt-subtitle__text"></p>
+    <img id="rt-subtitle-portrait" class="rt-subtitle__portrait" alt="" aria-hidden="true">
+    <div class="rt-subtitle__content">
+      <span class="rt-subtitle__name"></span>
+      <p class="rt-subtitle__text">
+        <span class="rt-subtitle__typed"></span><span class="rt-subtitle__cursor" aria-hidden="true"></span>
+      </p>
+    </div>
   </div>
 </section>

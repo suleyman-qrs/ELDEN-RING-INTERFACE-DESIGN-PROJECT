@@ -1838,6 +1838,20 @@ class EldenRingApp {
       document.getElementById("npc-enia-topic-seek")?.removeAttribute("hidden");
     });
 
+    // Lost-grace easter egg — touching the Site of Grace plays the chime and
+    // flashes the "Lost grace discovered" banner.
+    const graceZone = document.getElementById("rt-zone-grace");
+    const lostGrace = document.getElementById("lost-grace");
+    if (graceZone && lostGrace) {
+      let graceTimer = null;
+      graceZone.addEventListener("click", () => {
+        this.#audio.playSfxSimultaneous(["audio/sfx/lost-grace.mp3"], 0.85);
+        lostGrace.classList.add("lost-grace--visible");
+        clearTimeout(graceTimer);
+        graceTimer = setTimeout(() => lostGrace.classList.remove("lost-grace--visible"), 2800);
+      });
+    }
+
     /** @type {readonly NpcConfig[]} */
     const NPC_CONFIGS = Object.freeze([
       { zoneId: "rt-zone-d",      imgId: "rt-img-d",      dialogId: "npc-dialog-d",      npcName: "D, Hunter of the Dead",         zoomX: 22, zoomY: 68 },

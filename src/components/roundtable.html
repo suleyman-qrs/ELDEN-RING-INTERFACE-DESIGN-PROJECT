@@ -43,9 +43,19 @@
       aria-label="Speak with Enia"
       aria-haspopup="dialog"
     ></button>
+
+    <!-- Hidden easter egg: invisible patch over the Site of Grace -->
+    <button class="rt-npc-zone rt-grace-zone" id="rt-zone-grace"
+      aria-label="Touch the lost grace"
+    ></button>
   </div>
 
   <div class="rt-vignette" aria-hidden="true"></div>
+
+  <!-- "Lost grace discovered" banner — flashes in when the grace is touched -->
+  <div id="lost-grace" class="lost-grace" aria-hidden="true">
+    <img src="images/Lost grace dicovered.png" alt="Lost grace discovered" />
+  </div>
 
   <!-- Tutorial panel — dismissed once the player reads and closes it -->
   <div id="rt-tutorial" class="rt-tutorial" role="note" aria-label="Guidance of Grace">

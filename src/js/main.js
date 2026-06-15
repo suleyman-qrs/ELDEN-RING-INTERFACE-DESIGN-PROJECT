@@ -349,13 +349,9 @@ const SCENES = Object.freeze([
     dir: "Scenes/01_Elden_Ring",
     prefix: "Elden_ring",
     count: 55,
-    // "giving life" line plays sequentially after "O Elden Ring" — it was
-    // originally a mid-scene cue at frame 40, but that path is dead now that
-    // scene 1 is a video overlay (no frame ticking).
     audio: [
       "audio/dialogue/Elden Ring.mp3",
       "audio/dialogue/O Elden Ring.mp3",
-      "audio/dialogue/giving life its fullest brilliance.mp3",
     ],
     text: "Elden Ring. O, Elden Ring.",
     videoId: "elden-ring",
@@ -364,8 +360,11 @@ const SCENES = Object.freeze([
     dir: "Scenes/02_Its_Gold",
     prefix: "its_Gold_commanded",
     count: 59,
-    audio: ["audio/dialogue/its gold commanded the very stars.mp3"],
-    text: "Its gold commanded<br>the very stars,",
+    audio: [
+      "audio/dialogue/giving life its fullest brilliance.mp3",
+      "audio/dialogue/its gold commanded the very stars.mp3",
+    ],
+    text: "Giving life its fullest brilliance.<br>Its gold commanded the very stars,",
     videoId: "radagon",
   },
   {

@@ -181,13 +181,13 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2.5vh;
+  gap: 0px;
   z-index: 1;
 }
 
 .hero-name {
   font-family: var(--font-display);
-  font-size: clamp(28px, 5vw, 72px);
+  font-size: 24px;
   font-weight: 400;
   letter-spacing: 0.28em;
   text-transform: uppercase;

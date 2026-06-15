@@ -716,6 +716,9 @@ class ErdtreeScenePlayer {
       this.#stage.classList.toggle("active", ratio > 0.6);
 
       if (ratio > 0.5) {
+        // Still gated at the Roundtable Hold — never start the narration; the
+        // scroll clamp will pull the viewport back to the roundtable.
+        if (roundtableScrollLocked) return;
         this.#active = true;
         if (this.#sceneIdx < 0) {
           document.body.style.overflow = "hidden";
@@ -1077,50 +1080,49 @@ class SideNav {
 let roundtableScrollLocked = false;
 
 /**
- * Returns true when the roundtable section is the current active viewport section
- * (its top edge is within ±40% of viewport height from the top of the viewport).
- * Used to scope the downward-scroll guard so it doesn't block scroll from
- * biography → roundtable when the user scrolls back down after going up.
+ * True once the player has departed via "Seek the Elden Ring". Permanently
+ * disarms the roundtable gate so later free scrolling is never re-blocked.
  */
-function roundtableIsActive() {
-  const rect = document.getElementById("roundtable")?.getBoundingClientRect();
-  if (!rect) return false;
-  // Only consider the roundtable "active" when its top edge is within ±12% of
-  // the viewport height from the top — i.e. the user is settled at this section,
-  // not still scrolling towards it from biography.
-  const threshold = window.innerHeight * 0.12;
-  return rect.top > -threshold && rect.top < threshold;
+let seekDeparted = false;
+
+/** True while scrolling is frozen at the hold. */
+let roundtableFrozen = false;
+
+/** Scroll Y where the roundtable section begins (recomputed for layout shifts). */
+function roundtableTopY() {
+  const el = document.getElementById("roundtable");
+  return el ? el.offsetTop : Infinity;
 }
 
-// Accumulated upward scroll needed to escape the roundtable lock.
-const UPWARD_ESCAPE_THRESHOLD = 400;
-let _upwardEscapeDelta = 0;
+/**
+ * Pin the page at the Roundtable Hold and freeze scrolling until the player
+ * departs via "Seek the Elden Ring".
+ *
+ * overflow:hidden removes the scrollport entirely, so a fast flick (or keyboard
+ * jump) simply lands on the hold instead of blowing past it, and there is no
+ * momentum left to bounce/stutter against. The wheel/touch blockers are a
+ * backstop for inertial gestures the overflow lock might not catch. The freeze
+ * is held until departure — it is deliberately NOT released by scrolling, since
+ * a stray gesture releasing it was exactly what let fast scrolls slip through.
+ */
+function freezeAtRoundtable() {
+  if (roundtableFrozen || seekDeparted) return;
+  roundtableFrozen = true;
+  roundtableScrollLocked = true;
+  window.scrollTo(0, roundtableTopY());
+  document.body.style.overflow = "hidden";
+}
 
-// Single passive:false listener installed once — cheap when flag is false.
-window.addEventListener("wheel", e => {
-  if (!roundtableScrollLocked || !roundtableIsActive()) {
-    _upwardEscapeDelta = 0;
-    return;
-  }
-  const dy = e.deltaY ?? 0;
-  if (dy > 0) {
-    // Downward — always block
-    e.preventDefault();
-    _upwardEscapeDelta = 0;
-    return;
-  }
-  // Upward — accumulate; only release after threshold
-  _upwardEscapeDelta += Math.abs(dy);
-  if (_upwardEscapeDelta < UPWARD_ESCAPE_THRESHOLD) e.preventDefault();
-}, { passive: false });
+// Freeze the instant the viewport reaches the roundtable.
+window.addEventListener("scroll", () => {
+  if (seekDeparted || roundtableFrozen) return;
+  if (window.scrollY >= roundtableTopY() - 1) freezeAtRoundtable();
+}, { passive: true });
 
-// Also cover touch-based scroll (mobile / trackpad inertia).
-let touchStartY = 0;
-window.addEventListener("touchstart", e => { touchStartY = e.touches[0].clientY; }, { passive: true });
-window.addEventListener("touchmove", e => {
-  if (!roundtableScrollLocked || !roundtableIsActive()) return;
-  if (e.touches[0].clientY < touchStartY) e.preventDefault(); // swiping up → scrolling down
-}, { passive: false });
+// Backstop: swallow scroll gestures entirely while frozen.
+const blockWhileFrozen = e => { if (roundtableFrozen && !seekDeparted) e.preventDefault(); };
+window.addEventListener("wheel", blockWhileFrozen, { passive: false });
+window.addEventListener("touchmove", blockWhileFrozen, { passive: false });
 
 /**
  * Tracks which NPCs the player has spoken to at least once.
@@ -1254,7 +1256,10 @@ class ChoiceMap {
         if (missedEl) missedEl.textContent = missed.map(id => NPC_NAMES[id]).join(" · ");
 
         const doDepart = () => {
+          seekDeparted = true;
           roundtableScrollLocked = false;
+          roundtableFrozen = false;
+          document.body.style.overflow = "";
           confirmDialog.close();
           this.#dialog.close();
           eniaActive = false;
@@ -1267,7 +1272,10 @@ class ChoiceMap {
         confirmDialog.addEventListener("cancel", () => confirmDialog.close(), { once: true });
         confirmDialog.showModal();
       } else {
+        seekDeparted = true;
         roundtableScrollLocked = false;
+        roundtableFrozen = false;
+        document.body.style.overflow = "";
         this.#dialog.close();
         eniaActive = false;
         sceneZoom.zoomOut();

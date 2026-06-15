@@ -333,22 +333,18 @@ class AudioController {
 
 /* ──────────────────────────────────────────────────────
    SCENE DATA
-   12 PNG sequences, one per narration line.
-   Boss scenes (Godrick, Malenia, Radahn, Rykard) show a
-   static layered image instead of the frame animation —
-   indicated by the optional `bossId` field.
+   12 narration lines, each rendered as a full-screen overlay:
+   a looping scene video (`videoId`) or a static layered boss
+   image (`bossId`). Each carries its dialogue audio + subtitle.
 ────────────────────────────────────────────────────── */
 
 /**
- * @typedef {{ dir: string, prefix: string, count: number, audio: string[], text: string, loop?: boolean, bossId?: string, videoId?: string }} SceneData
+ * @typedef {{ audio: string[], text: string, loop?: boolean, bossId?: string, videoId?: string }} SceneData
  */
 
 /** @type {readonly SceneData[]} */
 const SCENES = Object.freeze([
   {
-    dir: "Scenes/01_Elden_Ring",
-    prefix: "Elden_ring",
-    count: 55,
     audio: [
       "audio/dialogue/Elden Ring.mp3",
       "audio/dialogue/O Elden Ring.mp3",
@@ -357,9 +353,6 @@ const SCENES = Object.freeze([
     videoId: "elden-ring",
   },
   {
-    dir: "Scenes/02_Its_Gold",
-    prefix: "its_Gold_commanded",
-    count: 59,
     audio: [
       "audio/dialogue/giving life its fullest brilliance.mp3",
       "audio/dialogue/its gold commanded the very stars.mp3",
@@ -368,213 +361,57 @@ const SCENES = Object.freeze([
     videoId: "radagon",
   },
   {
-    dir: "Scenes/03_Shattered",
-    prefix: "shattered",
-    count: 63,
     audio: ["audio/dialogue/Shattered, by someone, or something.mp3"],
     text: "Shattered, by someone,<br>or something.",
     videoId: "hammer",
   },
   {
-    dir: "Scenes/04_Godrick",
-    prefix: "godrick",
-    count: 58,
     audio: ["audio/dialogue/Godrick, the feeble.mp3"],
     text: "Godrick, the feeble.",
     bossId: "godrick",
   },
   {
-    dir: "Scenes/05_Malenia",
-    prefix: "malenia",
-    count: 60,
     audio: ["audio/dialogue/Malenia, decayed from birth.mp3"],
     text: "Malenia, decayed from birth.",
     bossId: "malenia",
   },
   {
-    dir: "Scenes/06_General_Radahn",
-    prefix: "general_radahn",
-    count: 47,
     audio: ["audio/dialogue/General Radahn, slayer of giants.mp3"],
     text: "General Radahn,<br>slayer of giants.",
     bossId: "radahn",
   },
   {
-    dir: "Scenes/07_Rykard",
-    prefix: "rykard",
-    count: 61,
     audio: ["audio/dialogue/Rykard, the tyrannical serpent.mp3"],
     text: "Rykard,<br>the tyrannical serpent.",
     bossId: "rykard",
   },
   {
-    dir: "Scenes/08_Morgott",
-    prefix: "morgott",
-    count: 64,
     audio: ["audio/dialogue/And Morgott, Prince of the Omen.mp3"],
     text: "And Morgott,<br>Prince of the Omen.",
     bossId: "margit",
   },
   {
-    dir: "Scenes/09_Each_Inheriting",
-    prefix: "each_inheriting",
-    count: 47,
     audio: ["audio/dialogue/Each, inheriting their own shard, played a part in the Shattering.mp3"],
     text: "Each, inheriting their own shard,<br>played a part in the Shattering,",
     videoId: "vyke",
   },
   {
-    dir: "Scenes/10_A_War",
-    prefix: "a_war",
-    count: 43,
     audio: ["audio/dialogue/a war with no end, and no victor.mp3"],
     text: "a war with no end,<br>and no victor.",
     videoId: "malenia-radahn",
   },
   {
-    dir: "Scenes/11_and_so_the_two_Fingers",
-    prefix: "and_so_the_two_fingers",
-    count: 45,
     audio: ["audio/dialogue/And so the Two Fingers call upon ye, the Tarnished.mp3"],
     text: "And so the Two Fingers<br>call upon ye, the Tarnished.",
     videoId: "tarnished",
   },
   {
-    dir: "Scenes/12_To_cross_the_fog",
-    prefix: "to_cross_the_fog",
-    count: 92,
     audio: ["audio/dialogue/To cross the Sea of Fog, to the Lands Between To seek the Elden Ring. Seek the Elden Ring.mp3"],
     text: "To cross the Sea of Fog,<br>to the Lands Between.<br><br>To seek the Elden Ring.<br>Seek the Elden Ring.",
     loop: true,
     videoId: "erdtree",
   },
 ]);
-
-const TOTAL_FRAMES = SCENES.reduce((sum, s) => sum + s.count, 0);
-
-/* ──────────────────────────────────────────────────────
-   NARRATION CANVAS PLAYER
-   Windowed frame cache — keeps ±25 frames in memory,
-   evicting the rest. Preloads ahead on each seek.
-────────────────────────────────────────────────────── */
-
-class ErdtreePlayer {
-  static #AHEAD  = 22;
-  static #BEHIND = 6;
-
-  /** @type {HTMLCanvasElement} */          #canvas;
-  /** @type {CanvasRenderingContext2D} */   #ctx;
-  /** @type {Map<number, HTMLImageElement>} */ #cache   = new Map();
-  /** @type {Set<number>} */                #loading = new Set();
-  #currentFrame = -1;
-
-  /** @param {HTMLCanvasElement} canvas */
-  constructor(canvas) {
-    this.#canvas = canvas;
-    this.#ctx    = /** @type {CanvasRenderingContext2D} */ (canvas.getContext("2d"));
-    this.#resize();
-    window.addEventListener("resize", () => this.#resize(), { passive: true });
-  }
-
-  #resize() {
-    const p = this.#canvas.parentElement;
-    this.#canvas.width  = p?.clientWidth  ?? window.innerWidth;
-    this.#canvas.height = p?.clientHeight ?? window.innerHeight;
-    if (this.#currentFrame >= 0) {
-      const img = this.#cache.get(this.#currentFrame);
-      if (img) this.#draw(img);
-    }
-  }
-
-  /** @param {number} i - global frame index */
-  #src(i) {
-    let g = i;
-    for (const scene of SCENES) {
-      if (g < scene.count) {
-        return `${scene.dir}/${scene.prefix}${String(g).padStart(2, "0")}.png`;
-      }
-      g -= scene.count;
-    }
-    const last = SCENES.at(-1);
-    return `${last.dir}/${last.prefix}${String(last.count - 1).padStart(2, "0")}.png`;
-  }
-
-  /** @param {number} i */
-  #load(i) {
-    if (i < 0 || i >= TOTAL_FRAMES) return;
-    if (this.#cache.has(i) || this.#loading.has(i)) return;
-    this.#loading.add(i);
-    const img = new Image();
-    img.onload  = () => {
-      this.#loading.delete(i);
-      this.#cache.set(i, img);
-      if (i === this.#currentFrame) this.#draw(img);
-    };
-    img.onerror = () => this.#loading.delete(i);
-    img.src = this.#src(i);
-  }
-
-  /** @param {number} center */
-  #evict(center) {
-    for (const k of this.#cache.keys()) {
-      if (k < center - ErdtreePlayer.#BEHIND || k > center + ErdtreePlayer.#AHEAD) {
-        this.#cache.delete(k);
-      }
-    }
-  }
-
-  /** @param {HTMLImageElement} img */
-  #draw(img) {
-    const { width: cw, height: ch } = this.#canvas;
-    const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
-    const w = img.naturalWidth  * scale;
-    const h = img.naturalHeight * scale;
-    this.#ctx.clearRect(0, 0, cw, ch);
-    this.#ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
-  }
-
-  /** @param {number} frameIdx */
-  seek(frameIdx) {
-    frameIdx = Math.max(0, Math.min(TOTAL_FRAMES - 1, frameIdx));
-    this.#evict(frameIdx);
-    const end = Math.min(frameIdx + ErdtreePlayer.#AHEAD, TOTAL_FRAMES - 1);
-    for (let i = frameIdx; i <= end; i++) this.#load(i);
-    if (frameIdx !== this.#currentFrame) {
-      this.#currentFrame = frameIdx;
-      const img = this.#cache.get(frameIdx);
-      if (img) this.#draw(img);
-    }
-  }
-
-  init() {
-    for (let i = 0; i < Math.min(30, TOTAL_FRAMES); i++) this.#load(i);
-  }
-}
-
-/* ──────────────────────────────────────────────────────
-   CHAPTER CUES
-   One cue fires at the first frame of each scene.
-   "Giving life" has no dedicated scene folder so it is
-   inserted as a mid-scene-01 cue.
-────────────────────────────────────────────────────── */
-
-/**
- * @typedef {{ frame: number, audio: string[], text: string, loop: boolean }} ChapterCue
- * @type {readonly ChapterCue[]}
- */
-const CHAPTER_CUES = (() => {
-  let frame = 0;
-  const cues = SCENES.map(s => {
-    const cue = { frame, audio: s.audio, text: s.text, loop: s.loop ?? false };
-    frame += s.count;
-    return cue;
-  });
-  // NOTE: the original "giving life its fullest brilliance" splice at frame 40
-  // was removed — all scenes are now video/boss overlays and the frame counter
-  // never ticks, so frame-based mid-scene cues can never fire.
-  // The audio is now chained onto scene 1's audio array instead.
-  return Object.freeze(cues);
-})();
 
 /**
  * Returns the dominant-axis wheel delta (X or Y, whichever is larger).
@@ -591,32 +428,22 @@ function getDominantScrollDelta(e) {
 
 /* ──────────────────────────────────────────────────────
    NARRATION SCENE PLAYER
-   Drives the multi-scene PNG animation.
-   For boss scenes (bossId set) the canvas is hidden and
-   a layered image overlay is shown instead.
-   Converts vertical wheel → scene advance / rewind.
+   Drives the 12-scene narration. Each scene is a full-screen
+   overlay — a scene video or a layered boss image. Converts
+   wheel input → scene advance / rewind, and auto-advances
+   for passive viewers as each line's dialogue ends.
 ────────────────────────────────────────────────────── */
 
 class ErdtreeScenePlayer {
-  /** Animation frame rate for PNG sequences. */
-  static #FPS = 18;
-
   /** @type {HTMLElement} */       #section;
   /** @type {HTMLElement} */       #stage;
   /** @type {HTMLElement} */       #subtitle;
-  /** @type {HTMLElement} */       #canvasEl;
-  /** @type {ErdtreePlayer} */     #player;
   /** @type {AudioController} */   #audio;
-  /** @type {number[]} */          #sceneStart = [];
   /** Cached static node lists — never change after page load. */
   /** @type {HTMLElement[]} */     #bossSlides  = [];
   /** @type {HTMLElement[]} */     #sceneVideos = [];
 
   #chapter     = -1;
-  #rafId       = null;
-  #lastTs      = null;
-  #frame       = 0;
-  #targetFrame = -1;
   #sceneIdx    = -1;
   #active      = false;
   #done        = false;
@@ -644,12 +471,7 @@ class ErdtreeScenePlayer {
     this.#section  = /** @type {HTMLElement} */ (document.getElementById("erdtree-scroll"));
     this.#stage    = /** @type {HTMLElement} */ (document.getElementById("erdtree-stage"));
     this.#subtitle = /** @type {HTMLElement} */ (document.getElementById("erdtree-subtitle"));
-    this.#canvasEl = /** @type {HTMLElement} */ (document.getElementById("erdtree-canvas"));
-    this.#player   = new ErdtreePlayer(/** @type {HTMLCanvasElement} */ (this.#canvasEl));
     this.#audio    = audio;
-
-    let f = 0;
-    for (const scene of SCENES) { this.#sceneStart.push(f); f += scene.count; }
 
     // Cache static overlay node lists — elements never added/removed after load.
     this.#bossSlides  = Array.from(this.#stage.querySelectorAll(".boss-slide"));
@@ -741,7 +563,6 @@ class ErdtreeScenePlayer {
         this.#cancelAutoAdvance();
         this.#subtitle.classList.remove("visible");
         this.#chapter = -1;
-        this.#stopPlay();
         this.#audio.stopDialogue();
       }
     }, { threshold: [0, 0.1, 0.5, 0.6, 1.0] });
@@ -763,7 +584,7 @@ class ErdtreeScenePlayer {
       // Any intentional scroll cancels the auto-advance timer.
       this.#cancelAutoAdvance();
 
-      if (this.#rafId || this.#sliding) { e.preventDefault(); return; }
+      if (this.#sliding) { e.preventDefault(); return; }
       if (goingForward && this.#done) return;
       if (!goingForward && this.#sceneIdx <= 0) {
         document.body.style.overflow = "";
@@ -776,8 +597,7 @@ class ErdtreeScenePlayer {
   }
 
   /**
-   * Show the correct overlay (boss image or video) for the given scene index,
-   * or restore the canvas for pure PNG-sequence scenes.
+   * Show the correct overlay (boss image or video) for the given scene index.
    * Pauses any outgoing video and plays the incoming one.
    * @param {number} idx
    */
@@ -785,7 +605,6 @@ class ErdtreeScenePlayer {
     const scene   = SCENES[idx] ?? {};
     const bossId  = scene.bossId  ?? null;
     const videoId = scene.videoId ?? null;
-    const isOverlay = bossId !== null || videoId !== null;
 
     // Deactivate all boss overlays.
     this.#bossSlides.forEach(el => el.classList.remove("boss-slide--active"));
@@ -806,9 +625,6 @@ class ErdtreeScenePlayer {
         }, TRANSITION_TIMING.SCENE_VIDEO_FADE);
       }
     });
-
-    // Canvas: visible only for pure PNG scenes.
-    this.#canvasEl.classList.toggle("erdtree-canvas--hidden", isOverlay);
 
     if (bossId) {
       document.getElementById(`boss-${bossId}`)?.classList.add("boss-slide--active");
@@ -836,98 +652,33 @@ class ErdtreeScenePlayer {
     }
   }
 
-  /** @param {number} idx */
+  /**
+   * Switch to scene `idx`. Every scene is a video/boss overlay, so the change is
+   * applied immediately (the CSS opacity transition handles the crossfade) and a
+   * brief slide-lock prevents scroll momentum from skipping the next scene.
+   * @param {number} idx
+   */
   #goToScene(idx) {
     idx = Math.max(0, Math.min(SCENES.length - 1, idx));
 
-    const isFirst   = this.#sceneIdx < 0;
-    const direction = idx >= this.#sceneIdx ? 1 : -1;
+    this.#done     = false;
+    this.#finished = false;
+    this.#sceneIdx = idx;
 
-    this.#done        = false;
-    this.#finished    = false;
-    this.#sceneIdx    = idx;
-    this.#frame       = this.#sceneStart[idx];
-    this.#targetFrame = idx < SCENES.length - 1
-      ? this.#sceneStart[idx + 1] - 1
-      : TOTAL_FRAMES - 1;
+    this.#syncOverlay(idx);
+    this.#updateChapter(idx);
 
-    this.#stopPlay();
-
-    /** Whether the scene uses a video/boss overlay instead of canvas frames. */
-    const isOverlay = !!(SCENES[idx].videoId || SCENES[idx].bossId);
-
-    if (isFirst) {
-      this.#syncOverlay(idx);
-      this.#updateChapterFromFrame();
-
-      if (!isOverlay) {
-        // Pure PNG-sequence: run the frame animation; #rafId blocks wheel handler.
-        this.#lastTs = null;
-        this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
-      } else {
-        // Video / boss overlay: no RAF, but hold a brief slide-lock so scroll
-        // momentum can't immediately skip to the next scene.
-        this.#sliding = true;
-        this.#slideTimer = setTimeout(() => {
-          this.#sliding = false;
-          if (idx >= SCENES.length - 1) {
-            this.#done = true;
-            document.body.style.overflow = "";
-          }
-        }, TRANSITION_TIMING.OVERLAY_SLIDE_LOCK);
-      }
-      return;
+    if (idx >= SCENES.length - 1) {
+      this.#done = true;
+      document.body.style.overflow = "";
     }
 
+    // Hold the slide-lock long enough for the CSS fade to settle.
     this.#sliding = true;
     clearTimeout(this.#slideTimer);
-
-    if (isOverlay) {
-      // Overlay scene (video or boss image): switch immediately so there is
-      // no blank gap. CSS opacity transition handles the crossfade visually.
-      this.#syncOverlay(idx);
-      this.#updateChapterFromFrame();
-      if (idx >= SCENES.length - 1) {
-        this.#done = true;
-        document.body.style.overflow = "";
-      }
-      // Hold the slide-lock long enough for the CSS fade to settle.
-      this.#slideTimer = setTimeout(() => {
-        this.#sliding = false;
-      }, TRANSITION_TIMING.OVERLAY_SLIDE_LOCK);
-    } else {
-      // Pure PNG-sequence scene: slide the canvas out, seek, slide back in.
-      const el   = this.#canvasEl;
-      const outX = direction === 1 ? "-100%" : "100%";
-      const inX  = direction === 1 ?  "100%" : "-100%";
-
-      el.style.transition = `transform ${TRANSITION_TIMING.CANVAS_SLIDE_OUT / 1000}s ease-in`;
-      el.style.transform  = `translateX(${outX})`;
-
-      this.#slideTimer = setTimeout(() => {
-        this.#syncOverlay(idx);
-        this.#player.seek(this.#frame);
-        this.#updateChapterFromFrame();
-
-        el.style.transition = "none";
-        el.style.transform  = `translateX(${inX})`;
-        void el.offsetWidth;
-        el.style.transition = `transform ${TRANSITION_TIMING.CANVAS_SLIDE_IN / 1000}s ease-out`;
-        el.style.transform  = "translateX(0)";
-        this.#lastTs = null;
-        this.#rafId  = requestAnimationFrame(ts => this.#tick(ts));
-
-        this.#slideTimer = setTimeout(() => {
-          el.style.transition = "";
-          this.#sliding = false;
-        }, TRANSITION_TIMING.CANVAS_SLIDE_IN);
-      }, TRANSITION_TIMING.CANVAS_SLIDE_OUT);
-    }
-  }
-
-  #stopPlay() {
-    if (this.#rafId) cancelAnimationFrame(this.#rafId);
-    this.#rafId = null;
+    this.#slideTimer = setTimeout(() => {
+      this.#sliding = false;
+    }, TRANSITION_TIMING.OVERLAY_SLIDE_LOCK);
   }
 
   /**
@@ -950,51 +701,26 @@ class ErdtreeScenePlayer {
     if (this.#autoTimer !== null) { clearTimeout(this.#autoTimer); this.#autoTimer = null; }
   }
 
-  /** @param {DOMHighResTimeStamp} ts */
-  #tick(ts) {
-    if (!this.#lastTs) this.#lastTs = ts;
-    const elapsed       = ts - this.#lastTs;
-    const frameDuration = 1000 / ErdtreeScenePlayer.#FPS;
+  /**
+   * Show the subtitle and drive the dialogue + auto-advance for scene `idx`.
+   * Guarded by `#chapter` so re-entering the same scene doesn't restart it.
+   * @param {number} idx
+   */
+  #updateChapter(idx) {
+    if (idx < 0 || idx === this.#chapter) return;
 
-    if (elapsed >= frameDuration) {
-      const frames  = Math.floor(elapsed / frameDuration);
-      this.#lastTs  = ts - (elapsed % frameDuration);
-      this.#frame   = Math.min(this.#frame + frames, this.#targetFrame);
-      this.#player.seek(this.#frame);
-      this.#updateChapterFromFrame();
-
-      if (this.#frame >= this.#targetFrame) {
-        if (this.#sceneIdx >= SCENES.length - 1) {
-          this.#done = true;
-          document.body.style.overflow = "";
-        }
-        this.#rafId = null;
-        return;
-      }
-    }
-
-    this.#rafId = requestAnimationFrame(ts => this.#tick(ts));
-  }
-
-  #updateChapterFromFrame() {
-    let chapterIdx = -1;
-    for (let i = CHAPTER_CUES.length - 1; i >= 0; i--) {
-      if (this.#frame >= CHAPTER_CUES[i].frame) { chapterIdx = i; break; }
-    }
-    if (chapterIdx < 0 || chapterIdx === this.#chapter) return;
-
-    this.#chapter = chapterIdx;
+    this.#chapter = idx;
     this.#cancelAutoAdvance();
     this.#sceneEnteredAt = performance.now();
 
-    this.#subtitle.innerHTML = CHAPTER_CUES[chapterIdx].text;
+    const cue = SCENES[idx];
+    this.#subtitle.innerHTML = cue.text;
     this.#subtitle.classList.remove("visible");
     requestAnimationFrame(() =>
       requestAnimationFrame(() => this.#subtitle.classList.add("visible")),
     );
 
-    const cue      = CHAPTER_CUES[chapterIdx];
-    const isLast   = chapterIdx >= SCENES.length - 1;
+    const isLast = idx >= SCENES.length - 1;
 
     if (isLast) {
       // Final scene: closing line plays ONCE (loop=false so onEnd can fire),

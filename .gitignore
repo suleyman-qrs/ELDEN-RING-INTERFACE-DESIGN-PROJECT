@@ -10,3 +10,9 @@ node_modules
 
 # Large binary assets — share these out-of-band (cloud drive, USB, etc.)
 design/
+
+# Local agent tooling / worktrees (not part of the site)
+.crystl/
+.crystl-agent-history/
+eldenring/
+Scenes/

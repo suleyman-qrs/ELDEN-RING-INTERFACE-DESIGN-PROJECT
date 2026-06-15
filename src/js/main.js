@@ -180,17 +180,18 @@ class AudioController {
   playDialogueSequence(srcs, loop = false, rootSrcs = srcs, onEnd = null) {
     this.#dialogue?.pause();
     this.#dialogue = null;
-    // When dialogue can't play (disabled / not yet unlocked / empty) we do NOT
-    // fire onEnd synchronously — that used to cascade the scene auto-advance and
-    // flash the whole narration past. The caller's time-based fallback advances.
-    if (!this.#dialogueEnabled || !this.#unlocked || !srcs.length) {
-      return;
-    }
+    if (!srcs.length) return;
+    // The Dialogue toggle only controls the VOICE — when it's off we still play
+    // the track MUTED so subtitles and scene timing run exactly the same, just
+    // silent. Unmuted audio needs the autoplay unlock; if not yet unlocked we
+    // skip (the caller's time-based fallback advances) to avoid a cascade.
+    if (this.#dialogueEnabled && !this.#unlocked) return;
 
     const gen = ++this.#dialogueGen;
     const [first, ...rest] = srcs;
     const el = new Audio(first);
     this.#dialogue = el;
+    el.muted = !this.#dialogueEnabled;
     el.volume = 1;
     el.play().catch(() => {});
 
@@ -217,10 +218,14 @@ class AudioController {
   playDialogueLine(srcs, onEnd) {
     this.#dialogue?.pause();
     this.#dialogue = null;
-    if (!this.#dialogueEnabled || !this.#unlocked || !srcs.length) { onEnd?.(); return; }
+    if (!srcs.length) { onEnd?.(); return; }
+    // Dialogue off → still play MUTED so the subtitle stays for the line's
+    // duration and onEnd (restore) fires normally. Unmuted needs the unlock.
+    if (this.#dialogueEnabled && !this.#unlocked) { onEnd?.(); return; }
 
     // Capture current generation; stopDialogue increments it, invalidating callbacks.
     const gen = ++this.#dialogueGen;
+    const muted = !this.#dialogueEnabled;
     const guardedEnd = onEnd ? () => { if (this.#dialogueGen === gen) onEnd(); } : undefined;
 
     const playFrom = (/** @type {string[]} */ remaining) => {
@@ -228,6 +233,7 @@ class AudioController {
       const [first, ...rest] = remaining;
       const el = new Audio(first);
       this.#dialogue = el;
+      el.muted = muted;
       el.volume = 1;
       el.play().catch(() => {});
       const next = rest.length ? () => { if (this.#dialogueGen === gen) playFrom(rest); } : guardedEnd;
@@ -275,12 +281,14 @@ class AudioController {
   }
 
   /**
-   * Enable or disable dialogue audio. Disabling stops any current line.
+   * Enable or disable the dialogue VOICE only. The dialogue still plays (driving
+   * subtitles + scene/NPC timing); disabling just mutes it. Toggling mid-line
+   * mutes/unmutes the current track without interrupting its timing.
    * @param {boolean} on
    */
   setDialogueEnabled(on) {
     this.#dialogueEnabled = on;
-    if (!on) this.stopDialogue();
+    if (this.#dialogue) this.#dialogue.muted = !on;
   }
 
   /**

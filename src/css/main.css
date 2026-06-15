@@ -1454,13 +1454,22 @@ body {
 }
 
 .audio-controls__title {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: clamp(11px, 0.9vw, 14px);
   letter-spacing: 0.28em;
   text-transform: uppercase;
   color: var(--gold);
   opacity: 0.7;
-  margin-bottom: 2px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  /* Thin gold rule echoing Elden Ring's menu headers. */
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(
+      90deg,
+      var(--gold-line),
+      rgba(172, 138, 56, 0.08)
+    )
+    1;
 }
 
 .audio-controls__row {
@@ -1485,27 +1494,64 @@ body {
   pointer-events: auto;
 }
 
-/* Diamond mark — mirrors .sidenav__dot style */
+/* Grace ember — an unlit hollow mote that kindles into a glowing
+   Site-of-Grace ember when its channel is enabled. */
 .audio-controls__mark {
   flex-shrink: 0;
-  width: 6px;
-  height: 6px;
-  border: 1px solid rgba(200, 164, 52, 0.35);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(200, 164, 52, 0.3);
   background: transparent;
-  transform: rotate(45deg);
-  transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
 }
 
 .audio-controls__input:checked + .audio-controls__mark {
-  background: var(--gold);
-  border-color: var(--gold);
-  box-shadow: 0 0 8px rgba(180, 148, 40, 0.7);
+  border-color: var(--gold-bright);
+  background: radial-gradient(
+    circle at 50% 42%,
+    #fff6d8 0%,
+    var(--gold-bright) 38%,
+    var(--gold) 72%,
+    rgba(180, 148, 40, 0.35) 100%
+  );
+  box-shadow:
+    0 0 6px 1px rgba(226, 188, 80, 0.85),
+    0 0 14px 3px rgba(200, 164, 52, 0.5),
+    0 0 22px 6px rgba(180, 148, 40, 0.22);
+  animation: graceEmber 2.8s ease-in-out infinite;
+}
+
+/* Slow breathing glow — the living flicker of grace. */
+@keyframes graceEmber {
+  0%,
+  100% {
+    box-shadow:
+      0 0 5px 1px rgba(226, 188, 80, 0.7),
+      0 0 12px 3px rgba(200, 164, 52, 0.4),
+      0 0 20px 5px rgba(180, 148, 40, 0.18);
+  }
+  50% {
+    box-shadow:
+      0 0 7px 2px rgba(226, 188, 80, 0.95),
+      0 0 18px 5px rgba(200, 164, 52, 0.6),
+      0 0 28px 9px rgba(180, 148, 40, 0.28);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audio-controls__input:checked + .audio-controls__mark {
+    animation: none;
+  }
 }
 
 .audio-controls__label {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: clamp(13px, 1vw, 16px);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
   color: rgba(240, 226, 192, 0.5);
   transition: color 0.2s ease;
 }

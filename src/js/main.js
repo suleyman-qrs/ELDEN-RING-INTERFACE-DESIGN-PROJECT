@@ -451,6 +451,10 @@ class ErdtreeScenePlayer {
   #slideTimer  = null;
   /** Timer handle for automatic scene advance (passive-viewer mode). */
   #autoTimer   = null;
+  /** Outgoing video + its `ended` handler while waiting for a loop to finish
+   *  before auto-advancing (so the video never visibly snaps back to frame 0). */
+  /** @type {HTMLVideoElement | null} */ #loopEndVideo   = null;
+  /** @type {(() => void) | null} */     #loopEndHandler = null;
   /** Timestamp (performance.now) the current chapter became active. */
   #sceneEnteredAt = 0;
   /** True once the final scene has ended and the end-scroll has been armed. */
@@ -638,7 +642,14 @@ class ErdtreeScenePlayer {
       const v = /** @type {HTMLVideoElement|null} */ (incomingVideo.querySelector("video"));
       // preload="none" means the bytes aren't fetched until we play — so only
       // scenes that are actually shown download.
-      if (v) { v.currentTime = 0; v.play().catch(() => {}); }
+      if (v) {
+        // Every scene but the last loops. Set it explicitly (not just via the
+        // HTML attribute) so a video reused after an auto-advance — which turns
+        // loop off to catch its `ended` — loops again on a later visit.
+        v.loop = idx < SCENES.length - 1;
+        v.currentTime = 0;
+        v.play().catch(() => {});
+      }
     }
 
     // Prefetch the next scene's video so it's ready when we advance — bumping
@@ -693,12 +704,47 @@ class ErdtreeScenePlayer {
     this.#autoTimer = setTimeout(() => {
       this.#autoTimer = null;
       if (!this.#active || this.#done) return;
-      this.#goToScene(nextIdx);
+      this.#advanceAtLoopBoundary(nextIdx);
     }, holdMs);
+  }
+
+  /**
+   * Advance to the next scene cleanly. For a looping video scene, let the current
+   * loop finish first — turning `loop` off makes the video play to its end and
+   * fire `ended` instead of snapping back to frame 0, so the crossfade starts
+   * exactly at the loop boundary with no restart flash. Non-video (boss) scenes,
+   * or a video that's already stopped, advance immediately.
+   * @param {number} nextIdx
+   */
+  #advanceAtLoopBoundary(nextIdx) {
+    const videoId = SCENES[this.#sceneIdx]?.videoId;
+    const v = videoId
+      ? /** @type {HTMLVideoElement|null} */ (document.querySelector(`#scene-${videoId} video`))
+      : null;
+
+    if (!v || v.paused || v.ended) { this.#goToScene(nextIdx); return; }
+
+    v.loop = false;
+    this.#loopEndVideo   = v;
+    this.#loopEndHandler = () => {
+      this.#clearLoopEndWatch();
+      if (this.#active && !this.#done) this.#goToScene(nextIdx);
+    };
+    v.addEventListener("ended", this.#loopEndHandler, { once: true });
+  }
+
+  /** Detach a pending loop-boundary `ended` watcher, if any. */
+  #clearLoopEndWatch() {
+    if (this.#loopEndVideo && this.#loopEndHandler) {
+      this.#loopEndVideo.removeEventListener("ended", this.#loopEndHandler);
+    }
+    this.#loopEndVideo   = null;
+    this.#loopEndHandler = null;
   }
 
   #cancelAutoAdvance() {
     if (this.#autoTimer !== null) { clearTimeout(this.#autoTimer); this.#autoTimer = null; }
+    this.#clearLoopEndWatch();
   }
 
   /**

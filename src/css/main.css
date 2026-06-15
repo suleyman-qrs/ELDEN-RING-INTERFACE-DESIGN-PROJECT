@@ -376,6 +376,12 @@ body {
   );
 }
 
+/* Very faint grace embers in the prologue — sits above the dark backdrop but
+   behind the text (.bio-scroll is z-index:1). */
+.bio-embers {
+  opacity: 0.28;
+}
+
 .bio-text {
   position: relative;
   z-index: 1;
@@ -393,7 +399,7 @@ body {
 .bio-text::before {
   content: "";
   display: block;
-  margin: 0 auto 2.4em;
+  margin: 0 auto 1.1em;
   width: 56px;
   height: 1px;
   background: linear-gradient(
@@ -1377,20 +1383,22 @@ body {
 .platform-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 11px 28px;
+  gap: 14px;
+  padding: 13px 26px;
   background: transparent;
   border: none;
   border-radius: 0;
   text-decoration: none;
   color: var(--cream);
-  font-family: var(--font-serif);
-  font-size: clamp(13px, 1.25vw, 18px);
+  font-family: var(--font-display);
+  font-size: clamp(12px, 1.05vw, 16px);
+  text-transform: uppercase;
   white-space: nowrap;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.16em;
   transition:
-    background 0.15s,
-    color 0.15s;
+    background 0.2s ease,
+    color 0.2s ease,
+    text-shadow 0.2s ease;
   border-bottom: 1px solid rgba(140, 110, 35, 0.14);
 }
 
@@ -1398,21 +1406,32 @@ body {
   border-bottom: none;
 }
 
+/* Gold diamond bullet — echoes the sidebar / sound-control grace nodes. */
 .platform-btn::before {
-  content: "›";
-  color: var(--gold);
-  opacity: 0.5;
-  font-size: 1.15em;
-  transition: opacity 0.15s;
+  content: "";
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--gold);
+  background: transparent;
+  transform: rotate(45deg);
+  opacity: 0.55;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .platform-btn:hover {
   background: rgba(172, 138, 56, 0.1);
   color: var(--gold-bright);
+  text-shadow: var(--glow-sm);
 }
 
 .platform-btn:hover::before {
   opacity: 1;
+  background: var(--gold);
+  box-shadow: 0 0 8px rgba(180, 148, 40, 0.7);
 }
 
 .platform-icon {
@@ -1515,7 +1534,7 @@ body {
   z-index: 300;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   pointer-events: auto;
   opacity: 40%;
   transition-duration: 0.8s;
@@ -1547,7 +1566,7 @@ body {
 .audio-controls__row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   cursor: pointer;
   user-select: none;
 }
@@ -1566,13 +1585,13 @@ body {
   pointer-events: auto;
 }
 
-/* Diamond node — matches the sidebar: a thin gold frame around a dim core
-   that kindles to a lit grace when the channel is enabled. */
+/* Diamond node — matches the sidebar's gold frame, but with a round dot at its
+   centre that kindles to a lit grace when the channel is enabled. */
 .audio-controls__mark {
   position: relative;
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  width: 10px;
+  height: 10px;
   background: var(--black);
   border: 1px solid rgba(200, 164, 52, 0.5);
   transform: rotate(45deg);
@@ -1582,11 +1601,17 @@ body {
     transform 0.25s ease;
 }
 
+/* Centre dot (round, not an inset diamond). */
 .audio-controls__mark::after {
   content: "";
   position: absolute;
-  inset: 3px;
-  background: rgba(200, 164, 52, 0.22);
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(200, 164, 52, 0.3);
   transition:
     background 0.25s ease,
     box-shadow 0.25s ease;
@@ -1644,13 +1669,27 @@ body {
   transform: translateY(-50%);
   z-index: 300;
   opacity: 0;
-  transition: opacity 0.5s ease;
+  transition: opacity 0.45s ease;
   pointer-events: none;
 }
 
+/* Past the hero the rail is armed but stays hidden — it fades back in only on
+   hover (move the cursor toward the right edge to summon it). */
 .sidenav.visible {
-  opacity: 1;
   pointer-events: auto;
+}
+
+.sidenav.visible:hover {
+  opacity: 1;
+}
+
+/* Invisible hover catcher — widens the hit area out to the right screen edge so
+   the rail reappears when you reach for it. Inherits pointer-events from the
+   nav, so it stays inert until the nav is `.visible`. */
+.sidenav::before {
+  content: "";
+  position: absolute;
+  inset: -14% -54px -14% -18px;
 }
 
 .sidenav-list {

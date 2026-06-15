@@ -713,6 +713,9 @@ class ErdtreeScenePlayer {
   #initVisibilityObserver() {
     const io = new IntersectionObserver(([entry]) => {
       const ratio = entry.intersectionRatio;
+      // A sidebar jump is scrolling PAST the narration to a lower section —
+      // don't start it or flash the stage in passing.
+      if (passingErdtree) return;
       this.#stage.classList.toggle("active", ratio > 0.6);
 
       if (ratio > 0.5) {
@@ -1050,7 +1053,28 @@ class SideNav {
 
     this.#dots.forEach((dot, i) => {
       dot.addEventListener("click", () => {
-        this.#targets[i]?.scrollIntoView({ behavior: "smooth", block: "start" });
+        const target = /** @type {HTMLElement | null} */ (this.#targets[i]);
+        if (!target) return;
+
+        const holdTop    = roundtableTopY();
+        const erdtreeTop = document.getElementById("erdtree-scroll")?.offsetTop ?? Infinity;
+
+        // The sidebar bypasses the roundtable gate (manual scrolling still can't).
+        navigating = true;
+        roundtableFrozen = false;
+        document.body.style.overflow = "";
+
+        if (target.offsetTop >= holdTop) {
+          // Jumping to or past the hold via the sidebar departs it.
+          seekDeparted = true;
+          roundtableScrollLocked = false;
+          // Going PAST the narration (About / Play Game) — scroll through it
+          // without auto-starting it. Landing ON it (The Shattering) still does.
+          if (target.offsetTop > erdtreeTop) passingErdtree = true;
+        }
+
+        clearNavOnSettle();
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     });
   }
@@ -1088,6 +1112,21 @@ let seekDeparted = false;
 /** True while scrolling is frozen at the hold. */
 let roundtableFrozen = false;
 
+/**
+ * Sidebar-navigation bypass. The sidebar is a jump tool, so a dot click is
+ * allowed to scroll past the hold even though manual scrolling cannot. These
+ * only affect the programmatic sidebar scroll — manual scrolling is untouched.
+ */
+let navigating = false;      // a sidebar scroll is in flight → don't let the gate re-freeze it
+let passingErdtree = false;  // sidebar scroll is passing the narration → don't auto-start it
+let _navSettleTimer = null;
+/** Clear the bypass flags once the programmatic scroll has actually settled
+ *  (robust for long scrolls — not a fixed timeout racing the animation). */
+function clearNavOnSettle() {
+  if (_navSettleTimer) clearTimeout(_navSettleTimer);
+  _navSettleTimer = setTimeout(() => { navigating = false; passingErdtree = false; }, 160);
+}
+
 /** Scroll Y where the roundtable section begins (recomputed for layout shifts). */
 function roundtableTopY() {
   const el = document.getElementById("roundtable");
@@ -1115,6 +1154,8 @@ function freezeAtRoundtable() {
 
 // Freeze the instant the viewport reaches the roundtable.
 window.addEventListener("scroll", () => {
+  // A sidebar jump is allowed through — keep deferring the freeze until it settles.
+  if (navigating) { clearNavOnSettle(); return; }
   if (seekDeparted || roundtableFrozen) return;
   if (window.scrollY >= roundtableTopY() - 1) freezeAtRoundtable();
 }, { passive: true });

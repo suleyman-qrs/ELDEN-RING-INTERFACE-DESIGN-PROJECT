@@ -130,7 +130,7 @@ body {
 
 .phase--hero {
   background:
-    url("../images/bg_hero.jpg") center center / cover no-repeat;
+    url("../images/bg_hero.webp") center center / cover no-repeat;
   flex-direction: column;
 }
 
@@ -348,7 +348,7 @@ body {
 .bio-bg {
   position: absolute;
   inset: 0;
-  background-image: url("../images/bio_bg_map.png");
+  background-image: url("../images/bio_bg_map.webp");
   background-size: cover;
   background-position: center;
   opacity: 0.07;
@@ -1232,7 +1232,7 @@ body {
 .game-cta-section {
   position: relative;
   background:
-    url("../images/bg_cta.jpg") center center / cover no-repeat;
+    url("../images/bg_cta.webp") center center / cover no-repeat;
   padding: clamp(80px, 12vh, 140px) clamp(32px, 8%, 120px);
   display: flex;
   align-items: center;

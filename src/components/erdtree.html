@@ -3,50 +3,53 @@
   <div class="erdtree-frame">
     <canvas id="erdtree-canvas"></canvas>
 
-    <!-- Video overlays — replace PNG sequences for non-boss scenes -->
+    <!-- Video overlays — replace PNG sequences for non-boss scenes.
+         preload="none" + poster: the browser defers the download until the
+         scene actually plays, so only the current (and prefetched next) scene
+         buffer; the poster shows instantly meanwhile. -->
     <div class="scene-video" id="scene-elden-ring">
-      <video src="video/scenes/elden_ring.mp4"      loop muted playsinline></video>
+      <video src="video/scenes/elden_ring.mp4"    poster="images/posters/elden_ring.webp"     preload="none" loop muted playsinline></video>
     </div>
     <div class="scene-video" id="scene-radagon">
-      <video src="video/scenes/radagon.mp4"          loop muted playsinline></video>
+      <video src="video/scenes/radagon.mp4"        poster="images/posters/radagon.webp"        preload="none" loop muted playsinline></video>
     </div>
     <div class="scene-video" id="scene-hammer">
-      <video src="video/scenes/hammer.mp4"           loop muted playsinline></video>
+      <video src="video/scenes/hammer.mp4"         poster="images/posters/hammer.webp"         preload="none" loop muted playsinline></video>
     </div>
     <div class="scene-video" id="scene-vyke">
-      <video src="video/scenes/vyke.mp4"             loop muted playsinline></video>
+      <video src="video/scenes/vyke.mp4"           poster="images/posters/vyke.webp"           preload="none" loop muted playsinline></video>
     </div>
     <div class="scene-video" id="scene-malenia-radahn">
-      <video src="video/scenes/malenia_radahn.mp4"   loop muted playsinline></video>
+      <video src="video/scenes/malenia_radahn.mp4" poster="images/posters/malenia_radahn.webp" preload="none" loop muted playsinline></video>
     </div>
     <div class="scene-video" id="scene-tarnished">
-      <video src="video/scenes/tarnished.mp4"        loop muted playsinline></video>
+      <video src="video/scenes/tarnished.mp4"      poster="images/posters/tarnished.webp"      preload="none" loop muted playsinline></video>
     </div>
     <div class="scene-video" id="scene-erdtree">
-      <video src="video/scenes/erdtree.mp4"          loop muted playsinline></video>
+      <video src="video/scenes/erdtree.mp4"        poster="images/posters/erdtree.webp"        preload="none" loop muted playsinline></video>
     </div>
 
     <!-- Boss image overlays — shown instead of the canvas for boss scenes -->
     <div class="boss-slide" id="boss-godrick">
-      <img class="boss-slide__bg"   src="images/bosses/godrick_layer.png" alt="">
-      <img class="boss-slide__char" src="images/bosses/godrick.png"       alt="">
+      <img class="boss-slide__bg"   src="images/bosses/godrick_layer.webp" alt="">
+      <img class="boss-slide__char" src="images/bosses/godrick.webp"       alt="">
     </div>
     <div class="boss-slide" id="boss-malenia">
-      <img class="boss-slide__bg"   src="images/bosses/malenia_background.png" alt="">
-      <img class="boss-slide__char" src="images/bosses/malenia.png"            alt="">
+      <img class="boss-slide__bg"   src="images/bosses/malenia_background.webp" alt="">
+      <img class="boss-slide__char" src="images/bosses/malenia.webp"            alt="">
     </div>
     <div class="boss-slide" id="boss-radahn">
-      <img class="boss-slide__bg"   src="images/bosses/radahn_background.png" alt="">
-      <img class="boss-slide__char" src="images/bosses/radahn.png"            alt="">
+      <img class="boss-slide__bg"   src="images/bosses/radahn_background.webp" alt="">
+      <img class="boss-slide__char" src="images/bosses/radahn.webp"            alt="">
     </div>
     <div class="boss-slide" id="boss-rykard">
-      <img class="boss-slide__bg"   src="images/bosses/rykard_background.png" alt="">
-      <img class="boss-slide__char" src="images/bosses/rykard.png"            alt="">
+      <img class="boss-slide__bg"   src="images/bosses/rykard_background.webp" alt="">
+      <img class="boss-slide__char" src="images/bosses/rykard.webp"            alt="">
     </div>
     <div class="boss-slide" id="boss-margit">
-      <img class="boss-slide__bg"    src="images/bosses/margit_background.png" alt="">
-      <img class="boss-slide__char"  src="images/bosses/margit.png"            alt="">
-      <img class="boss-slide__front" src="images/bosses/margit_front.png"      alt="">
+      <img class="boss-slide__bg"    src="images/bosses/margit_background.webp" alt="">
+      <img class="boss-slide__char"  src="images/bosses/margit.webp"            alt="">
+      <img class="boss-slide__front" src="images/bosses/margit_front.webp"      alt="">
     </div>
   </div>
 

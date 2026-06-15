@@ -46,6 +46,8 @@ const NARRATION_TIMING = Object.freeze({
   FALLBACK:       9000,
   /** Pause after dialogue audio ends before advancing. */
   AUDIO_END_HOLD:  800,
+  /** Dramatic beat after the final line ends before scrolling to the next section. */
+  END_HOLD:       2200,
 });
 
 /* ──────────────────────────────────────────────────────
@@ -343,9 +345,9 @@ const SCENES = Object.freeze([
     // originally a mid-scene cue at frame 40, but that path is dead now that
     // scene 1 is a video overlay (no frame ticking).
     audio: [
-      "audio/dialogue/Elden Ring.wav",
-      "audio/dialogue/O Elden Ring.wav",
-      "audio/dialogue/giving life its fullest brilliance.wav",
+      "audio/dialogue/Elden Ring.mp3",
+      "audio/dialogue/O Elden Ring.mp3",
+      "audio/dialogue/giving life its fullest brilliance.mp3",
     ],
     text: "Elden Ring. O, Elden Ring.",
     videoId: "elden-ring",
@@ -354,7 +356,7 @@ const SCENES = Object.freeze([
     dir: "Scenes/02_Its_Gold",
     prefix: "its_Gold_commanded",
     count: 59,
-    audio: ["audio/dialogue/its gold commanded the very stars.wav"],
+    audio: ["audio/dialogue/its gold commanded the very stars.mp3"],
     text: "Its gold commanded<br>the very stars,",
     videoId: "radagon",
   },
@@ -362,7 +364,7 @@ const SCENES = Object.freeze([
     dir: "Scenes/03_Shattered",
     prefix: "shattered",
     count: 63,
-    audio: ["audio/dialogue/Shattered, by someone, or something.wav"],
+    audio: ["audio/dialogue/Shattered, by someone, or something.mp3"],
     text: "Shattered, by someone,<br>or something.",
     videoId: "hammer",
   },
@@ -370,7 +372,7 @@ const SCENES = Object.freeze([
     dir: "Scenes/04_Godrick",
     prefix: "godrick",
     count: 58,
-    audio: ["audio/dialogue/Godrick, the feeble.wav"],
+    audio: ["audio/dialogue/Godrick, the feeble.mp3"],
     text: "Godrick, the feeble.",
     bossId: "godrick",
   },
@@ -378,7 +380,7 @@ const SCENES = Object.freeze([
     dir: "Scenes/05_Malenia",
     prefix: "malenia",
     count: 60,
-    audio: ["audio/dialogue/Malenia, decayed from birth.wav"],
+    audio: ["audio/dialogue/Malenia, decayed from birth.mp3"],
     text: "Malenia, decayed from birth.",
     bossId: "malenia",
   },
@@ -386,7 +388,7 @@ const SCENES = Object.freeze([
     dir: "Scenes/06_General_Radahn",
     prefix: "general_radahn",
     count: 47,
-    audio: ["audio/dialogue/General Radahn, slayer of giants.wav"],
+    audio: ["audio/dialogue/General Radahn, slayer of giants.mp3"],
     text: "General Radahn,<br>slayer of giants.",
     bossId: "radahn",
   },
@@ -394,7 +396,7 @@ const SCENES = Object.freeze([
     dir: "Scenes/07_Rykard",
     prefix: "rykard",
     count: 61,
-    audio: ["audio/dialogue/Rykard, the tyrannical serpent.wav"],
+    audio: ["audio/dialogue/Rykard, the tyrannical serpent.mp3"],
     text: "Rykard,<br>the tyrannical serpent.",
     bossId: "rykard",
   },
@@ -402,7 +404,7 @@ const SCENES = Object.freeze([
     dir: "Scenes/08_Morgott",
     prefix: "morgott",
     count: 64,
-    audio: ["audio/dialogue/And Morgott, Prince of the Omen.wav"],
+    audio: ["audio/dialogue/And Morgott, Prince of the Omen.mp3"],
     text: "And Morgott,<br>Prince of the Omen.",
     bossId: "margit",
   },
@@ -410,7 +412,7 @@ const SCENES = Object.freeze([
     dir: "Scenes/09_Each_Inheriting",
     prefix: "each_inheriting",
     count: 47,
-    audio: ["audio/dialogue/Each, inheriting their own shard, played a part in the Shattering.wav"],
+    audio: ["audio/dialogue/Each, inheriting their own shard, played a part in the Shattering.mp3"],
     text: "Each, inheriting their own shard,<br>played a part in the Shattering,",
     videoId: "vyke",
   },
@@ -418,7 +420,7 @@ const SCENES = Object.freeze([
     dir: "Scenes/10_A_War",
     prefix: "a_war",
     count: 43,
-    audio: ["audio/dialogue/a war with no end, and no victor.wav"],
+    audio: ["audio/dialogue/a war with no end, and no victor.mp3"],
     text: "a war with no end,<br>and no victor.",
     videoId: "malenia-radahn",
   },
@@ -426,7 +428,7 @@ const SCENES = Object.freeze([
     dir: "Scenes/11_and_so_the_two_Fingers",
     prefix: "and_so_the_two_fingers",
     count: 45,
-    audio: ["audio/dialogue/And so the Two Fingers call upon ye, the Tarnished.wav"],
+    audio: ["audio/dialogue/And so the Two Fingers call upon ye, the Tarnished.mp3"],
     text: "And so the Two Fingers<br>call upon ye, the Tarnished.",
     videoId: "tarnished",
   },
@@ -434,7 +436,7 @@ const SCENES = Object.freeze([
     dir: "Scenes/12_To_cross_the_fog",
     prefix: "to_cross_the_fog",
     count: 92,
-    audio: ["audio/dialogue/To cross the Sea of Fog, to the Lands Between To seek the Elden Ring. Seek the Elden Ring.wav"],
+    audio: ["audio/dialogue/To cross the Sea of Fog, to the Lands Between To seek the Elden Ring. Seek the Elden Ring.mp3"],
     text: "To cross the Sea of Fog,<br>to the Lands Between.<br><br>To seek the Elden Ring.<br>Seek the Elden Ring.",
     loop: true,
     videoId: "erdtree",
@@ -617,6 +619,8 @@ class ErdtreeScenePlayer {
   #autoTimer   = null;
   /** Timestamp (performance.now) the current chapter became active. */
   #sceneEnteredAt = 0;
+  /** True once the final scene has ended and the end-scroll has been armed. */
+  #finished    = false;
 
   // Boss parallax / float state
   /** Raw mouse offset from stage centre (px). */
@@ -644,7 +648,6 @@ class ErdtreeScenePlayer {
     this.#bossSlides  = Array.from(this.#stage.querySelectorAll(".boss-slide"));
     this.#sceneVideos = Array.from(this.#stage.querySelectorAll(".scene-video"));
 
-    this.#player.init();
     this.#initVisibilityObserver();
     this.#initWheelHandler();
     this.#initMouseTracking();
@@ -804,7 +807,19 @@ class ErdtreeScenePlayer {
     if (incomingVideo) {
       incomingVideo.classList.add("scene-video--active");
       const v = /** @type {HTMLVideoElement|null} */ (incomingVideo.querySelector("video"));
+      // preload="none" means the bytes aren't fetched until we play — so only
+      // scenes that are actually shown download.
       if (v) { v.currentTime = 0; v.play().catch(() => {}); }
+    }
+
+    // Prefetch the next scene's video so it's ready when we advance — bumping
+    // preload triggers the download ahead of time (current + next only).
+    const nextVideoId = SCENES[idx + 1]?.videoId;
+    if (nextVideoId) {
+      const nextV = /** @type {HTMLVideoElement|null} */ (
+        document.querySelector(`#scene-${nextVideoId} video`)
+      );
+      if (nextV && nextV.preload !== "auto") { nextV.preload = "auto"; nextV.load(); }
     }
   }
 
@@ -816,6 +831,7 @@ class ErdtreeScenePlayer {
     const direction = idx >= this.#sceneIdx ? 1 : -1;
 
     this.#done        = false;
+    this.#finished    = false;
     this.#sceneIdx    = idx;
     this.#frame       = this.#sceneStart[idx];
     this.#targetFrame = idx < SCENES.length - 1
@@ -967,15 +983,22 @@ class ErdtreeScenePlayer {
     const cue      = CHAPTER_CUES[chapterIdx];
     const isLast   = chapterIdx >= SCENES.length - 1;
 
-    if (!isLast) {
-      // Ceiling: advance even if dialogue audio never plays or never ends, so a
-      // silent/blocked scene still progresses instead of stalling or flashing.
-      this.#scheduleAutoAdvance(NARRATION_TIMING.FALLBACK);
+    if (isLast) {
+      // Final scene: closing line plays ONCE (loop=false so onEnd can fire),
+      // then the experience ends and scrolls on to the next section.
+      this.#audio.playDialogueSequence(cue.audio, false, cue.audio, () => this.#endNarration());
+      // Safety net: end even if dialogue never plays/ends (audio not unlocked, etc.).
+      this.#autoTimer = setTimeout(() => this.#endNarration(), NARRATION_TIMING.FALLBACK);
+      return;
     }
+
+    // Ceiling: advance even if dialogue audio never plays or never ends, so a
+    // silent/blocked scene still progresses instead of stalling or flashing.
+    this.#scheduleAutoAdvance(NARRATION_TIMING.FALLBACK);
 
     // When dialogue audio ends, advance after a short hold — but never sooner
     // than the readable floor, so an instantly-ending track can't flash past.
-    const onAudioEnd = isLast ? null : () => {
+    const onAudioEnd = () => {
       const elapsed = performance.now() - this.#sceneEnteredAt;
       const wait = Math.max(
         NARRATION_TIMING.AUDIO_END_HOLD,
@@ -984,6 +1007,21 @@ class ErdtreeScenePlayer {
       this.#scheduleAutoAdvance(wait);
     };
     this.#audio.playDialogueSequence(cue.audio, cue.loop, cue.audio, onAudioEnd);
+  }
+
+  /**
+   * End of the narration: let the final beat settle, then smooth-scroll to the
+   * next page section. Runs exactly once; skipped if the viewer already left.
+   */
+  #endNarration() {
+    if (this.#finished || !this.#active) return;
+    this.#finished = true;
+    this.#cancelAutoAdvance();
+    this.#done = true;
+    document.body.style.overflow = "";
+    setTimeout(() => {
+      document.getElementById("about")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, NARRATION_TIMING.END_HOLD);
   }
 }
 
@@ -1296,7 +1334,7 @@ class RoundtableHold {
   #playAudio() {
     this.#audio.startBgm("audio/music/1-08 Roundtable Hold.mp3", 0.4);
     this.#audio.playAmbientSfx(
-      ["audio/sfx/walking.wav", "audio/sfx/Roundtable sfx.wav"],
+      ["audio/sfx/walking.mp3", "audio/sfx/Roundtable sfx.mp3"],
       0.7,
     );
   }

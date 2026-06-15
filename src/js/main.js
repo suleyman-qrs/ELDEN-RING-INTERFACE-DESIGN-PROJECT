@@ -1877,36 +1877,28 @@ class EldenRingApp {
     this.#update();
   }
 
-  /** Show the narrative intro modal on first downward scroll from the hero. */
+  /**
+   * Headphones gate — shown on load. The page is frozen (no scrolling) until the
+   * player presses Continue, then it unfreezes. Pressing Continue is also the
+   * first user gesture, which unlocks audio.
+   */
   #initIntroModal() {
     const modal  = /** @type {HTMLElement|null} */ (document.getElementById("intro-modal"));
     const enterBtn = document.getElementById("intro-modal-enter");
     if (!modal || !enterBtn) return;
 
-    let triggered = false;
+    // Freeze immediately so nothing scrolls before the player continues.
+    document.body.style.overflow = "hidden";
+    modal.hidden = false;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => modal.classList.add("intro-modal--visible"));
+    });
 
     const dismiss = () => {
+      document.body.style.overflow = "";        // unfreeze
       modal.classList.remove("intro-modal--visible");
       modal.addEventListener("transitionend", () => { modal.hidden = true; }, { once: true });
     };
-
-    const show = () => {
-      if (triggered) return;
-      triggered = true;
-      modal.hidden = false;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => modal.classList.add("intro-modal--visible"));
-      });
-    };
-
-    // Fire on first downward scroll past 5% of the hero height
-    const onScroll = () => {
-      if (window.scrollY > this.#heroEl.offsetHeight * 0.05) {
-        show();
-        window.removeEventListener("scroll", onScroll);
-      }
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
 
     enterBtn.addEventListener("click", dismiss);
     // Keyboard: Enter or Space also closes

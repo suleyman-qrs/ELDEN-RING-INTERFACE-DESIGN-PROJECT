@@ -238,7 +238,7 @@ body {
 
 .volume-notice {
   position: fixed;
-  bottom: 86px;
+  bottom: clamp(120px, 15vh, 200px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -274,7 +274,7 @@ body {
 
 .scroll-cta {
   position: fixed;
-  bottom: clamp(16px, 4vh, 52px);
+  bottom: clamp(56px, 7vh, 100px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;

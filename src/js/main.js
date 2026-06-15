@@ -50,6 +50,9 @@ const NARRATION_TIMING = Object.freeze({
   END_HOLD:       2200,
 });
 
+/** Volume for per-scene narration sound effects — kept well under the voice. */
+const NARRATION_SFX_VOLUME = 0.4;
+
 /* ──────────────────────────────────────────────────────
    AUDIO CONTROLLER
    Handles BGM, sequential SFX, and non-overlapping
@@ -103,14 +106,24 @@ class AudioController {
    * Starts background music, stopping any currently playing BGM first.
    * @param {string} src
    * @param {number} [volume=0.4]
+   * @param {number} [startAt=0] — seconds to skip from the start of the track
    */
-  startBgm(src, volume = 0.4) {
+  startBgm(src, volume = 0.4, startAt = 0) {
     this.#bgm?.pause();
-    this.#bgm = new Audio(src);
-    this.#bgm.loop = true;
-    this.#bgm.volume = volume;
-    this.#bgm.preload = "auto";
-    this.#bgm.load();
+    const bgm = this.#bgm = new Audio(src);
+    bgm.loop = true;
+    bgm.volume = volume;
+    bgm.preload = "auto";
+    bgm.load();
+    if (startAt > 0) {
+      // Seek past the intro once the track knows its duration, so playback begins
+      // at the offset instead of from 0.
+      bgm.addEventListener(
+        "loadedmetadata",
+        () => { try { bgm.currentTime = startAt; } catch { /* not seekable yet */ } },
+        { once: true },
+      );
+    }
     if (!this.#bgmEnabled) return;
     if (this.#unlocked) {
       this.#tryPlay(this.#bgm);
@@ -339,7 +352,7 @@ class AudioController {
 ────────────────────────────────────────────────────── */
 
 /**
- * @typedef {{ audio: string[], text: string, loop?: boolean, bossId?: string, videoId?: string }} SceneData
+ * @typedef {{ audio: string[], text: string, text2?: string, text2Delay?: number, sfx?: string[], sfxDelay?: number, loop?: boolean, bossId?: string, videoId?: string }} SceneData
  */
 
 /** @type {readonly SceneData[]} */
@@ -350,6 +363,7 @@ const SCENES = Object.freeze([
       "audio/dialogue/O Elden Ring.mp3",
     ],
     text: "Elden Ring. O, Elden Ring.",
+    sfx: ["audio/sfx/Elden Ring Great Rune Aquired Sound Effect - Devil Echo Zefir.mp3"],
     videoId: "elden-ring",
   },
   {
@@ -368,6 +382,7 @@ const SCENES = Object.freeze([
   {
     audio: ["audio/dialogue/Godrick, the feeble.mp3"],
     text: "Godrick, the feeble.",
+    sfx: ["audio/sfx/Godrick screaming - Isaac Halley.mp3"],
     bossId: "godrick",
   },
   {
@@ -378,36 +393,47 @@ const SCENES = Object.freeze([
   {
     audio: ["audio/dialogue/General Radahn, slayer of giants.mp3"],
     text: "General Radahn,<br>slayer of giants.",
+    sfx: ["audio/sfx/Radahn roar sound effect - DEATH3906.mp3"],
     bossId: "radahn",
   },
   {
     audio: ["audio/dialogue/Rykard, the tyrannical serpent.mp3"],
     text: "Rykard,<br>the tyrannical serpent.",
+    sfx: ["audio/sfx/rykard_sfx.mp3"],
     bossId: "rykard",
   },
   {
     audio: ["audio/dialogue/And Morgott, Prince of the Omen.mp3"],
     text: "And Morgott,<br>Prince of the Omen.",
+    sfx: ["audio/sfx/Medieval Battle Ambience  Knights Templars  Immersive War Soundscape  Crusades.mp3"],
     bossId: "margit",
   },
   {
     audio: ["audio/dialogue/Each, inheriting their own shard, played a part in the Shattering.mp3"],
     text: "Each, inheriting their own shard,<br>played a part in the Shattering,",
+    sfx: ["audio/sfx/Elden Ring  Poise Broken [Sound Effect] - Bond Factory.mp3"],
+    sfxDelay: 2100,
     videoId: "vyke",
   },
   {
     audio: ["audio/dialogue/a war with no end, and no victor.mp3"],
     text: "a war with no end,<br>and no victor.",
+    sfx: ["audio/sfx/Wind Sound SOUND EFFECT - No Copyright[Download Free].mp3"],
     videoId: "malenia-radahn",
   },
   {
     audio: ["audio/dialogue/And so the Two Fingers call upon ye, the Tarnished.mp3"],
     text: "And so the Two Fingers<br>call upon ye, the Tarnished.",
+    sfx: ["audio/sfx/cave_ambience_tarnished.mp3"],
     videoId: "tarnished",
   },
   {
     audio: ["audio/dialogue/To cross the Sea of Fog, to the Lands Between To seek the Elden Ring. Seek the Elden Ring.mp3"],
-    text: "To cross the Sea of Fog,<br>to the Lands Between.<br><br>To seek the Elden Ring.<br>Seek the Elden Ring.",
+    text: "To cross the Sea of Fog,<br>to the Lands Between.",
+    // The closing couplet is spoken ~5.3s in — reveal it then, not up front.
+    text2: "To seek the Elden Ring.",
+    text2Delay: 5000,
+    sfx: ["audio/sfx/Elden Ring  Traverse The Mist [Sound Effect] - Bond Factory.mp3"],
     loop: true,
     videoId: "erdtree",
   },
@@ -451,10 +477,10 @@ class ErdtreeScenePlayer {
   #slideTimer  = null;
   /** Timer handle for automatic scene advance (passive-viewer mode). */
   #autoTimer   = null;
-  /** Outgoing video + its `ended` handler while waiting for a loop to finish
-   *  before auto-advancing (so the video never visibly snaps back to frame 0). */
-  /** @type {HTMLVideoElement | null} */ #loopEndVideo   = null;
-  /** @type {(() => void) | null} */     #loopEndHandler = null;
+  /** Timer handle for a delayed per-scene sound effect. */
+  #sfxTimer    = null;
+  /** Timer handle for a delayed second subtitle line (`text2`). */
+  #subtitleTimer = null;
   /** Timestamp (performance.now) the current chapter became active. */
   #sceneEnteredAt = 0;
   /** True once the final scene has ended and the end-scroll has been armed. */
@@ -567,7 +593,9 @@ class ErdtreeScenePlayer {
         this.#cancelAutoAdvance();
         this.#subtitle.classList.remove("visible");
         this.#chapter = -1;
+        this.#clearSubtitleTimer();
         this.#audio.stopDialogue();
+        this.#stopSceneSfx();
       }
     }, { threshold: [0, 0.1, 0.5, 0.6, 1.0] });
     io.observe(this.#section);
@@ -643,10 +671,10 @@ class ErdtreeScenePlayer {
       // preload="none" means the bytes aren't fetched until we play — so only
       // scenes that are actually shown download.
       if (v) {
-        // Every scene but the last loops. Set it explicitly (not just via the
-        // HTML attribute) so a video reused after an auto-advance — which turns
-        // loop off to catch its `ended` — loops again on a later visit.
-        v.loop = idx < SCENES.length - 1;
+        // Play once and freeze on the last frame instead of looping: a scene
+        // advances on the dialogue timer well before most clips end, and never
+        // seeing the video snap back to frame 0 avoids the ugly restart flash.
+        v.loop = false;
         v.currentTime = 0;
         v.play().catch(() => {});
       }
@@ -694,7 +722,7 @@ class ErdtreeScenePlayer {
 
   /**
    * Schedule an automatic advance to the next scene after audio finishes.
-   * Ignored on the final scene (it loops).
+   * Ignored on the final scene (it stays put and ends the narration).
    * @param {number} [holdMs=800] — extra pause after audio ends before advancing
    */
   #scheduleAutoAdvance(holdMs = 800) {
@@ -704,47 +732,35 @@ class ErdtreeScenePlayer {
     this.#autoTimer = setTimeout(() => {
       this.#autoTimer = null;
       if (!this.#active || this.#done) return;
-      this.#advanceAtLoopBoundary(nextIdx);
+      this.#goToScene(nextIdx);
     }, holdMs);
-  }
-
-  /**
-   * Advance to the next scene cleanly. For a looping video scene, let the current
-   * loop finish first — turning `loop` off makes the video play to its end and
-   * fire `ended` instead of snapping back to frame 0, so the crossfade starts
-   * exactly at the loop boundary with no restart flash. Non-video (boss) scenes,
-   * or a video that's already stopped, advance immediately.
-   * @param {number} nextIdx
-   */
-  #advanceAtLoopBoundary(nextIdx) {
-    const videoId = SCENES[this.#sceneIdx]?.videoId;
-    const v = videoId
-      ? /** @type {HTMLVideoElement|null} */ (document.querySelector(`#scene-${videoId} video`))
-      : null;
-
-    if (!v || v.paused || v.ended) { this.#goToScene(nextIdx); return; }
-
-    v.loop = false;
-    this.#loopEndVideo   = v;
-    this.#loopEndHandler = () => {
-      this.#clearLoopEndWatch();
-      if (this.#active && !this.#done) this.#goToScene(nextIdx);
-    };
-    v.addEventListener("ended", this.#loopEndHandler, { once: true });
-  }
-
-  /** Detach a pending loop-boundary `ended` watcher, if any. */
-  #clearLoopEndWatch() {
-    if (this.#loopEndVideo && this.#loopEndHandler) {
-      this.#loopEndVideo.removeEventListener("ended", this.#loopEndHandler);
-    }
-    this.#loopEndVideo   = null;
-    this.#loopEndHandler = null;
   }
 
   #cancelAutoAdvance() {
     if (this.#autoTimer !== null) { clearTimeout(this.#autoTimer); this.#autoTimer = null; }
-    this.#clearLoopEndWatch();
+  }
+
+  /** Stop active SFX and cancel any pending delayed scene SFX. */
+  #stopSceneSfx() {
+    if (this.#sfxTimer !== null) { clearTimeout(this.#sfxTimer); this.#sfxTimer = null; }
+    this.#audio.stopSfx();
+  }
+
+  /**
+   * Swap the subtitle text and (re)play its fade-in.
+   * @param {string} html
+   */
+  #showSubtitle(html) {
+    this.#subtitle.innerHTML = html;
+    this.#subtitle.classList.remove("visible");
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => this.#subtitle.classList.add("visible")),
+    );
+  }
+
+  /** Cancel a pending delayed second subtitle line, if any. */
+  #clearSubtitleTimer() {
+    if (this.#subtitleTimer !== null) { clearTimeout(this.#subtitleTimer); this.#subtitleTimer = null; }
   }
 
   /**
@@ -757,14 +773,29 @@ class ErdtreeScenePlayer {
 
     this.#chapter = idx;
     this.#cancelAutoAdvance();
+    this.#clearSubtitleTimer();
     this.#sceneEnteredAt = performance.now();
 
     const cue = SCENES[idx];
-    this.#subtitle.innerHTML = cue.text;
-    this.#subtitle.classList.remove("visible");
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => this.#subtitle.classList.add("visible")),
-    );
+    this.#showSubtitle(cue.text);
+    // Optional second subtitle line revealed partway through the scene, so it
+    // lands with its spoken line instead of appearing up front.
+    if (cue.text2) {
+      this.#subtitleTimer = setTimeout(
+        () => { this.#subtitleTimer = null; this.#showSubtitle(cue.text2); },
+        cue.text2Delay ?? 0,
+      );
+    }
+
+    // Per-scene sound effect: stop the previous scene's SFX (and any pending
+    // delayed one) so it can't bleed into this one, then play this scene's
+    // effect — immediately, or after `sfxDelay` ms if set.
+    this.#stopSceneSfx();
+    if (cue.sfx) {
+      const play = () => this.#audio.playSfxSimultaneous(cue.sfx, NARRATION_SFX_VOLUME);
+      if (cue.sfxDelay) this.#sfxTimer = setTimeout(play, cue.sfxDelay);
+      else play();
+    }
 
     const isLast = idx >= SCENES.length - 1;
 
@@ -805,7 +836,8 @@ class ErdtreeScenePlayer {
     this.#done = true;
     document.body.style.overflow = "";
     setTimeout(() => {
-      document.getElementById("about")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Scroll on to the next section after The Shattering (now the Play Game CTA).
+      document.getElementById("game-cta")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, NARRATION_TIMING.END_HOLD);
   }
 }
@@ -1121,7 +1153,7 @@ class ChoiceMap {
     this.#fadeEl.classList.add("active");
     setTimeout(() => {
       document.getElementById("erdtree-scroll")?.scrollIntoView({ behavior: "instant", block: "start" });
-      this.#audio.startBgm("audio/music/gameplay-trailer-from-shadow-of-the-erdtree.mp3", 0.35);
+      this.#audio.startBgm("audio/music/gameplay-trailer-from-shadow-of-the-erdtree.mp3", 0.2, 20);
       setTimeout(() => this.#fadeEl.classList.remove("active"), 50);
     }, 750);
   }
@@ -1129,21 +1161,35 @@ class ChoiceMap {
 
 /* ──────────────────────────────────────────────────────
    ROUNDTABLE HOLD — wake-up sequence
-   Triggers once when the section enters the viewport.
-   Snaps into view and locks page scroll until the
-   choice dialog is dismissed.
-   Plays BGM → walking SFX → sigh → "my oh my".
+   The Roundtable music starts early — as soon as the player
+   scrolls into the Prologue — so it's already playing by the
+   time they reach the Hold. The wake-up itself (snap into
+   view, scroll-lock, ambient SFX) still triggers when the
+   Hold section enters the viewport.
 ────────────────────────────────────────────────────── */
 
 class RoundtableHold {
   /** @type {HTMLElement} */      #section;
   /** @type {AudioController} */  #audio;
-  #awoken = false;
+  #awoken       = false;
+  #musicStarted = false;
 
   /** @param {AudioController} audio */
   constructor(audio) {
     this.#section = /** @type {HTMLElement} */ (document.getElementById("roundtable"));
     this.#audio   = audio;
+
+    // Start the music as soon as the Prologue (biography) scrolls into view.
+    const prologue = document.getElementById("biography");
+    if (prologue) {
+      const pio = new IntersectionObserver(([entry]) => {
+        if (entry.intersectionRatio > 0) {
+          this.#audio.onUnlock(() => this.#startMusic());
+          pio.disconnect();
+        }
+      }, { threshold: [0] });
+      pio.observe(prologue);
+    }
 
     // IntersectionObserver fires regardless of body scroll-lock state, making
     // the audio trigger reliable whether the user scrolls or uses the sidenav.
@@ -1159,8 +1205,17 @@ class RoundtableHold {
     io.observe(this.#section);
   }
 
+  /** Start the Roundtable music once. Safe to call again (no restart).
+   *  Skips ~9.5s past the track's sparse intro so the music is audible right
+   *  away as the player scrolls into the Prologue. */
+  #startMusic() {
+    if (this.#musicStarted) return;
+    this.#musicStarted = true;
+    this.#audio.startBgm("audio/music/1-08 Roundtable Hold.mp3", 0.4, 9.5);
+  }
+
   #playAudio() {
-    this.#audio.startBgm("audio/music/1-08 Roundtable Hold.mp3", 0.4);
+    this.#startMusic(); // already playing if the player passed through the Prologue
     this.#audio.playAmbientSfx(
       ["audio/sfx/walking.mp3", "audio/sfx/Roundtable sfx.mp3"],
       0.7,

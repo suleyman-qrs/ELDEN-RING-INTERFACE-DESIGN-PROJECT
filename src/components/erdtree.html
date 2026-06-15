@@ -1,30 +1,32 @@
 <section id="erdtree-scroll" class="erdtree-hscroll" aria-label="The Erdtree"></section>
 <div id="erdtree-stage" class="erdtree-stage" aria-hidden="true">
   <div class="erdtree-frame">
-    <!-- Video overlays — one per non-boss narration scene.
+    <!-- Video overlays — one per non-boss narration scene. Each plays ONCE and
+         freezes on its last frame (no loop); the scene advances on the dialogue
+         timer, so the viewer never sees the video snap back to frame 0.
          preload="none" + poster: the browser defers the download until the
          scene actually plays, so only the current (and prefetched next) scene
          buffer; the poster shows instantly meanwhile. -->
     <div class="scene-video" id="scene-elden-ring">
-      <video src="video/scenes/elden_ring.mp4"    poster="images/posters/elden_ring.webp"     preload="none" loop muted playsinline></video>
+      <video src="video/scenes/elden_ring.mp4"    poster="images/posters/elden_ring.webp"     preload="none" muted playsinline></video>
     </div>
     <div class="scene-video" id="scene-radagon">
-      <video src="video/scenes/radagon.mp4"        poster="images/posters/radagon.webp"        preload="none" loop muted playsinline></video>
+      <video src="video/scenes/radagon.mp4"        poster="images/posters/radagon.webp"        preload="none" muted playsinline></video>
     </div>
     <div class="scene-video" id="scene-hammer">
-      <video src="video/scenes/hammer.mp4"         poster="images/posters/hammer.webp"         preload="none" loop muted playsinline></video>
+      <video src="video/scenes/hammer.mp4"         poster="images/posters/hammer.webp"         preload="none" muted playsinline></video>
     </div>
     <div class="scene-video" id="scene-vyke">
-      <video src="video/scenes/vyke.mp4"           poster="images/posters/vyke.webp"           preload="none" loop muted playsinline></video>
+      <video src="video/scenes/vyke.mp4"           poster="images/posters/vyke.webp"           preload="none" muted playsinline></video>
     </div>
     <div class="scene-video" id="scene-malenia-radahn">
-      <video src="video/scenes/malenia_radahn.mp4" poster="images/posters/malenia_radahn.webp" preload="none" loop muted playsinline></video>
+      <video src="video/scenes/malenia_radahn.mp4" poster="images/posters/malenia_radahn.webp" preload="none" muted playsinline></video>
     </div>
     <div class="scene-video" id="scene-tarnished">
-      <video src="video/scenes/tarnished.mp4"      poster="images/posters/tarnished.webp"      preload="none" loop muted playsinline></video>
+      <video src="video/scenes/tarnished.mp4"      poster="images/posters/tarnished.webp"      preload="none" muted playsinline></video>
     </div>
     <div class="scene-video" id="scene-erdtree">
-      <!-- Final scene plays once (no loop) — the narration auto-scrolls to About when it ends. -->
+      <!-- Final scene plays once — the narration auto-scrolls to About when it ends. -->
       <video src="video/scenes/erdtree.mp4"        poster="images/posters/erdtree.webp"        preload="none" muted playsinline></video>
     </div>
 
@@ -42,8 +44,9 @@
       <img class="boss-slide__char" src="images/bosses/radahn.webp"            alt="">
     </div>
     <div class="boss-slide" id="boss-rykard">
-      <img class="boss-slide__bg"   src="images/bosses/rykard_background.webp" alt="">
-      <img class="boss-slide__char" src="images/bosses/rykard.webp"            alt="">
+      <img class="boss-slide__bg"    src="images/bosses/rykard_background.webp" alt="">
+      <img class="boss-slide__char"  src="images/bosses/rykard.webp"            alt="">
+      <img class="boss-slide__front" src="images/bosses/rykard_front.webp"      alt="">
     </div>
     <div class="boss-slide" id="boss-margit">
       <img class="boss-slide__bg"    src="images/bosses/margit_background.webp" alt="">

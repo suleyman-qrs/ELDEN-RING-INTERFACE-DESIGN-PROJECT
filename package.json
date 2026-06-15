@@ -5,7 +5,7 @@
   "scripts": {
     "clean:output": "rimraf dist",
     "clean:cache": "rimraf .parcel-cache",
-    "link-assets": "mkdir -p dist && ln -sf ../audio dist/audio",
+    "link-assets": "mkdir -p dist && rm -rf dist/audio && ln -sf ../audio dist/audio",
     "copy-assets": "mkdir -p dist && rm -rf dist/audio && cp -RL audio dist/audio",
     "dev": "npm run clean:cache && npm run link-assets && parcel src/index.html",
     "build": "npm run clean:output && parcel build src/index.html --public-url '.' --no-cache && npm run copy-assets"

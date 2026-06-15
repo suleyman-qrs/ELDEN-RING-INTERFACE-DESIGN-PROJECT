@@ -1234,7 +1234,10 @@ body {
 
 .erdtree-subtitle {
   position: absolute;
-  top: calc(50% + 40vh + 16px);
+  /* Anchored from the bottom so long, multi-line lines (e.g. the closing
+     "Seek the Elden Ring") grow upward and stay on screen instead of
+     overflowing below the viewport. Kept low so it clears the scene focal art. */
+  bottom: 3vh;
   left: 50%;
   transform: translateX(-50%);
   z-index: 11; /* above .erdtree-vignette (z-index: 10) */

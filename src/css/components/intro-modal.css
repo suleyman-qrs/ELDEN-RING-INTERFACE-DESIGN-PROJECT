@@ -1,0 +1,93 @@
+/* ═══════════════════════════════════════════════════════
+   NARRATIVE INTRO MODAL
+   Appears on first scroll from the hero section.
+═══════════════════════════════════════════════════════ */
+
+.intro-modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+  pointer-events: none;
+}
+
+.intro-modal.intro-modal--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.intro-modal[hidden] {
+  display: none !important;
+}
+
+.intro-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* Centred floating panel */
+.intro-modal__panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  width: min(480px, 88vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(16px, 2.6vh, 26px);
+  text-align: center;
+  padding: clamp(28px, 5vh, 52px) clamp(28px, 5vw, 56px);
+  background: rgba(8, 6, 3, 0.86);
+  border: 1px solid var(--gold-border);
+  box-shadow:
+    0 0 0 4px rgba(0, 0, 0, 0.55),
+    inset 0 0 60px rgba(0, 0, 0, 0.5);
+}
+
+.intro-modal__title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(20px, 2.4vw, 32px);
+  letter-spacing: 0.1em;
+  color: var(--parchment);
+  margin: 0;
+  opacity: 0.9;
+}
+
+.intro-modal__body {
+  font-family: var(--font-serif);
+  font-size: clamp(15px, 1.4vw, 19px);
+  line-height: 1.7;
+  color: rgba(220, 205, 175, 0.65);
+  margin: 0;
+}
+
+.intro-modal__enter {
+  font-family: var(--font-display);
+  font-size: clamp(13px, 1.3vw, 17px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(160, 128, 40, 0.35);
+  padding: 8px 4px;
+  cursor: pointer;
+  transition:
+    color 0.25s,
+    border-color 0.25s;
+  outline: none;
+}
+
+.intro-modal__enter:hover,
+.intro-modal__enter:focus-visible {
+  color: var(--parchment);
+  border-color: rgba(160, 128, 40, 0.7);
+}

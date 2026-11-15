@@ -1,0 +1,205 @@
+/* ======================================================
+   PHASE 4 — ERDTREE SCENE PLAYER
+   ====================================================== */
+
+.erdtree-hscroll {
+  position: relative;
+  height: 100vh;
+  scroll-snap-align: start;
+}
+
+.erdtree-stage {
+  position: fixed;
+  inset: 0;
+  background: var(--ink-0);
+  z-index: var(--z-stage);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.erdtree-stage.active {
+  opacity: 1;
+}
+
+/* Framed animation window with aged-parchment border */
+.erdtree-frame {
+  position: relative;
+  width: 80vw;
+  height: 80vh;
+  overflow: hidden;
+
+  box-shadow:
+    inset 0 0 40px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(172, 138, 72, 0.95),
+    0 0 0 4px rgba(14, 10, 3, 1),
+    0 0 0 6px rgba(144, 114, 56, 0.8),
+    0 0 0 9px rgba(14, 10, 3, 0.98),
+    0 0 0 11px rgba(110, 86, 38, 0.55),
+    0 18px 90px rgba(0, 0, 0, 0.98),
+    0 0 180px rgba(0, 0, 0, 0.7);
+}
+
+.erdtree-frame::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(172, 138, 72, 0.22);
+  pointer-events: none;
+  z-index: 15;
+}
+
+.erdtree-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 14;
+  background:
+    radial-gradient(
+      ellipse 55% 45% at 0% 0%,
+      rgba(45, 28, 5, 0.4) 0%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 100% 0%,
+      rgba(45, 28, 5, 0.4) 0%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 0% 100%,
+      rgba(45, 28, 5, 0.4) 0%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 100% 100%,
+      rgba(45, 28, 5, 0.4) 0%,
+      transparent 100%
+    );
+}
+
+/* ── Scene video overlays ───────────────────────────── */
+
+.scene-video {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.55s ease;
+}
+
+.scene-video--active {
+  opacity: 1;
+}
+
+.scene-video video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Boss image overlays ─────────────────────────────── */
+
+/* Overlays sit inside .erdtree-frame, on top of the canvas.
+   Opacity-based show/hide lets CSS crossfade between boss scenes
+   and avoids a hard cut when entering/leaving a boss scene. */
+.boss-slide {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.55s ease;
+}
+
+.boss-slide--active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Background: slightly oversized so scale(1.07) + parallax shift
+   never reveals the edge of the image. */
+.boss-slide__bg {
+  position: absolute;
+  inset: -6%;
+  width: 112%;
+  height: 112%;
+  object-fit: cover;
+  object-position: center;
+  user-select: none;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+/* Character: contained and bottom-anchored; floats via JS RAF. */
+.boss-slide__char {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  user-select: none;
+  will-change: transform;
+}
+
+/* Godrick — character anchored to the left */
+#boss-godrick .boss-slide__char {
+  object-position: left bottom;
+}
+
+/* Optional foreground layer — sits in front of the character (e.g. Margit front) */
+.boss-slide__front {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  user-select: none;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.erdtree-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  background: radial-gradient(
+    ellipse 90% 90% at 50% 50%,
+    transparent 40%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+}
+
+.erdtree-subtitle {
+  position: absolute;
+  /* Anchored from the bottom so long, multi-line lines (e.g. the closing
+     "Seek the Elden Ring") grow upward and stay on screen instead of
+     overflowing below the viewport. Kept low so it clears the scene focal art. */
+  bottom: 3vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 11; /* above .erdtree-vignette (z-index: 10) */
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(13px, 1.5vw, 22px);
+  line-height: 1.6;
+  text-align: center;
+  color: var(--parchment);
+  text-shadow: var(--glow-lg);
+  max-width: min(540px, 70vw);
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.erdtree-subtitle.visible {
+  opacity: 1;
+}

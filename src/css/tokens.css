@@ -1,0 +1,83 @@
+/* ======================================================
+   TOKENS
+   Source of truth for all tokens — rationale in DESIGN.md.
+   (design/design-tokens.json is a local, git-ignored mirror.)
+   Phase 1 adds the system without changing any rendered value.
+   ====================================================== */
+
+:root {
+  /* ── Color ─────────────────────────────────────────── */
+  --ink-0: #000000; /* page */
+  --ink-1: #0a0907; /* band panels — warm black */
+  --ink-2: #0f0f0f; /* footer — Figma "dark gray" */
+
+  --parchment: #f0e2c0; /* primary text — the game never uses pure white for body text */
+  --parchment-2: #c9bc9c; /* secondary text */
+  --parchment-3: #9a9078; /* labels, captions, footer */
+
+  --gold: #c8a434; /* interactive at rest — never body text */
+  --gold-bright: #e2bc50; /* hover / focus / active */
+  --rune: #d0604a; /* warning text, rare */
+  --hair: rgba(200, 164, 52, 0.45); /* band hairlines — the only translucent color */
+
+  /* ── Type ──────────────────────────────────────────── */
+  --font-display:
+    "Optimus Princeps", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-text: "EB Garamond", "Palatino Linotype", Palatino, Georgia, serif;
+
+  --step--1: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem); /* 13–14px, the floor */
+  --step-0: clamp(1rem, 0.95rem + 0.25vw, 1.125rem); /* 16–18px */
+  --step-1: clamp(1.25rem, 1.15rem + 0.45vw, 1.5rem); /* 20–24px */
+  --step-2: clamp(1.5rem, 1.3rem + 0.9vw, 2rem); /* 24–32px */
+  --step-3: clamp(2rem, 1.6rem + 1.8vw, 3rem); /* 32–48px */
+  --step-4: clamp(3.5rem, 2rem + 6.5vw, 8rem); /* 56–128px */
+
+  --track-caps: 0.32em;
+  --track-label: 0.12em;
+  --leading-display: 1.1;
+  --leading-text: 1.6;
+
+  /* ── Space (4px base) ──────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+
+  /* ── Motion ────────────────────────────────────────── */
+  --dur-quick: 120ms; /* hover */
+  --dur-base: 240ms; /* UI state */
+  --dur-slow: 600ms; /* fades */
+  --dur-scene: 1200ms; /* scene changes */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-grace: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* ── Layers (fixed, page-level only) ───────────────────
+     Local stacking inside a section keeps plain numbers. */
+  --z-stage: 10; /* narration stage */
+  --z-modal: 200; /* intro modal — Phase 2 lifts it above the HUD */
+  --z-hud: 300; /* sidenav, sound controls */
+  --z-fade: 500; /* page fade between chapters */
+  --z-grace: 600; /* "Lost Grace Discovered" banner */
+
+  /* ── Shape ─────────────────────────────────────────── */
+  --hairline: 1px;
+  --hit-min: 44px;
+
+  /* ── Legacy — still referenced by section CSS.
+     Migrated and deleted in Phases 2–4. Do not use in new rules. ── */
+  --font-serif: "Agmena Pro", "Palatino Linotype", Palatino, Georgia, serif; /* Agmena is never loaded */
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --gold-dim: rgba(180, 148, 40, 0.55);
+  --gold-line: rgba(172, 138, 56, 0.5);
+  --gold-border: rgba(160, 128, 40, 0.65);
+  --cream-dim: rgba(240, 226, 192, 0.65);
+  --glow-sm: 0 0 10px rgba(180, 148, 40, 0.45);
+  --glow-lg: 0 0 28px rgba(180, 148, 40, 0.35);
+  --white: #fff;
+}

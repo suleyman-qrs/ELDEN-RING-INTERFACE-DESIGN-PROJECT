@@ -1,0 +1,162 @@
+/* ── NPC DIALOGUE — Elden Ring centered info-panel style ──
+   Structure matches the in-game "Map Menu" / "INFORMATION"
+   panel: thin rule above title, thin rule below title,
+   scrollable options, footer hint row at bottom.
+──────────────────────────────────────────────────────────── */
+
+.npc-dialog {
+  transition: opacity 0.3s ease;
+}
+
+.npc-dialog.npc-dialog--faded {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.npc-dialog:not([open]) {
+  display: none;
+}
+
+.npc-dialog[open] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+
+  width: min(760px, 84vw);
+  max-height: 78vh;
+  overflow: hidden; /* clips scroll; flex children handle inner scroll */
+
+  display: flex;
+  flex-direction: column;
+  outline: none;
+  padding: 0;
+
+  /* Match tutorial / subtitle palette */
+  background: rgba(8, 6, 3, 0.93);
+  border: 1px solid var(--gold-border);
+  box-shadow:
+    0 0 0 4px rgba(0, 0, 0, 0.55),
+    inset 0 0 60px rgba(0, 0, 0, 0.5),
+    0 12px 64px rgba(0, 0, 0, 0.96);
+}
+
+/* Scene darkens behind dialog */
+.npc-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.68);
+  transition: background 0.3s ease;
+}
+
+/* When dialog fades for dialogue playback, clear the backdrop too
+   so the roundtable scene stays visible beneath the subtitle */
+.npc-dialog.npc-dialog--faded::backdrop {
+  background: transparent;
+}
+
+/* Thin rule at very top of panel (above the title) */
+.npc-dialog[open]::before {
+  content: "";
+  display: block;
+  flex-shrink: 0;
+  height: 1px;
+  background: var(--gold-border);
+}
+
+/* Footer row with keyboard hints — always pinned to bottom */
+.npc-dialog[open]::after {
+  content: "⏎ :OK    Esc :Close";
+  display: block;
+  flex-shrink: 0;
+  text-align: center;
+  padding: clamp(11px, 1.6vh, 18px) 0;
+  border-top: 1px solid var(--gold-border);
+  font-family: var(--font-sans);
+  font-size: clamp(12px, 1vw, 15px);
+  letter-spacing: 0.12em;
+  color: rgba(240, 226, 192, 0.35);
+  pointer-events: none;
+}
+
+/* ── Title ────────────────────────────────────────────── */
+
+.npc-dialog__title {
+  flex-shrink: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(16px, 1.5vw, 22px);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-align: center;
+  color: var(--parchment);
+  padding: clamp(18px, 2.6vh, 28px) 36px;
+  /* Thin rule below title — matches the game's title separator */
+  border-bottom: 1px solid rgba(200, 190, 160, 0.18);
+}
+
+.npc-dialog__title::before,
+.npc-dialog__title::after {
+  display: none;
+}
+
+/* ── Options list — scrollable middle section ─────────── */
+
+.npc-dialog__topics {
+  flex: 1;
+  min-height: 0; /* allows flex child to shrink + scroll */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(14px, 2.4vh, 26px) 0;
+}
+
+.npc-topic-btn {
+  width: 100%;
+  padding: clamp(10px, 1.4vh, 16px) clamp(28px, 3vw, 44px);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: clamp(16px, 1.5vw, 22px);
+  font-weight: 400;
+  color: var(--parchment);
+  letter-spacing: 0.03em;
+  text-align: left;
+  transition:
+    background 0.08s,
+    color 0.08s;
+}
+
+.npc-topic-btn::before,
+.npc-topic-btn::after {
+  display: none;
+}
+
+/* Subtle row highlight — matches game's selected item */
+.npc-topic-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--white);
+}
+
+.npc-topic-btn--seek {
+  color: var(--gold);
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(200, 190, 160, 0.14);
+}
+
+.npc-topic-btn--seek:hover {
+  background: rgba(200, 164, 52, 0.1);
+  color: var(--gold-bright);
+}
+
+.npc-topic-btn--leave {
+  color: rgba(240, 226, 192, 0.42);
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(200, 190, 160, 0.1);
+}
+
+.npc-topic-btn--leave:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--parchment);
+}

@@ -1,0 +1,74 @@
+/* ── Reset & Root ──────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  scroll-snap-type: y proximity;
+}
+
+body {
+  background: var(--ink-0);
+  color: var(--white);
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ─────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--ink-0);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(172, 138, 72, 0.28);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(172, 138, 72, 0.55);
+}
+
+/* ── Selection ─────────────────────────────────────── */
+
+::selection {
+  background: rgba(255, 208, 0, 0.2);
+  color: var(--white);
+}
+
+/* ── Phase base ────────────────────────────────────── */
+
+.phase {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  min-height: 560px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* ── Scroll fade-in ────────────────────────────────── */
+
+.fade-in {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.9s ease,
+    transform 0.9s ease;
+}
+
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}

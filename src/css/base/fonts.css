@@ -1,0 +1,22 @@
+/* ── Font ──────────────────────────────────────────── */
+
+@font-face {
+  font-family: "Optimus Princeps";
+  src:
+    local("OptimusPrinceps"),
+    local("Optimus Princeps"),
+    url("../../fonts/OptimusPrinceps.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Optimus Princeps";
+  src:
+    local("OptimusPrincepsSemiBold"),
+    url("../../fonts/OptimusPrincepsSemiBold.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}

@@ -1,0 +1,102 @@
+/* ======================================================
+   PHASE 2a — BIOGRAPHY
+   ====================================================== */
+
+.phase--biography {
+  position: relative;
+  width: 100%;
+  background: var(--ink-0);
+  margin-top: 40vh;
+  /* No fixed height / overflow:hidden — the section grows with its slots, and
+     overflow:hidden would break the sticky backdrop below. */
+}
+
+/* Sticky backdrop: stays put while the narration scrolls past it.
+   The negative margin removes its flow height so the first slot starts at the
+   section top instead of one screen below it. */
+.bio-backdrop {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  margin-bottom: -100vh;
+  z-index: 0;
+}
+
+.bio-scroll {
+  position: relative;
+  z-index: 1;
+}
+
+/* One full screen of scroll per block, with the text centred in it. */
+.bio-slot {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8vw;
+}
+
+.bio-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url("../../images/bio_bg_map.webp");
+  background-size: cover;
+  background-position: center;
+  opacity: 0.07;
+}
+
+.bio-map {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    var(--ink-0) 0%,
+    rgba(0, 0, 0, 0.5) 50%,
+    var(--ink-0) 100%
+  );
+}
+
+/* Very faint grace embers in the prologue — sits above the dark backdrop but
+   behind the text (.bio-scroll is z-index:1). */
+.bio-embers {
+  opacity: 0.28;
+}
+
+.bio-text {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-serif);
+  font-size: clamp(15px, 1.75vw, 26px);
+  line-height: 1.9;
+  text-align: center;
+  color: var(--parchment);
+  opacity: 0.82;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+  letter-spacing: 0.02em;
+  max-width: min(600px, 84vw);
+}
+
+.bio-text::before {
+  content: "";
+  display: block;
+  margin: 0 auto 1.1em;
+  width: 56px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(172, 138, 72, 0.55),
+    transparent
+  );
+}
+
+/* Keep the muted 0.82 tone through the fade reveal. Both `.fade-in` and
+   `.bio-text` are single-class selectors, so without these the base 0.82 would
+   override the hidden state and the reveal would land at full white. */
+.bio-text.fade-in {
+  opacity: 0;
+}
+
+.bio-text.fade-in.visible {
+  opacity: 0.82;
+}

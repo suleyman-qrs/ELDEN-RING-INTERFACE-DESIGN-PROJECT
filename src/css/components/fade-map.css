@@ -1,0 +1,18 @@
+/* ======================================================
+   GLOBAL FADE MAP
+   ====================================================== */
+
+.fade-map {
+  position: fixed;
+  inset: 0;
+  background: var(--ink-0);
+  opacity: 0;
+  pointer-events: none;
+  z-index: var(--z-fade);
+  transition: opacity 0.7s ease;
+}
+
+.fade-map.active {
+  opacity: 1;
+  pointer-events: auto;
+}

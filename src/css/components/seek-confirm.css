@@ -1,0 +1,83 @@
+/* ── Seek confirmation dialog ─────────────────────────── */
+
+#dialog-seek-confirm[open] {
+  width: min(460px, 80vw);
+  max-height: none;
+  overflow: visible;
+}
+
+.seek-confirm__body {
+  padding: clamp(20px, 3vh, 32px) clamp(24px, 3.5vw, 44px);
+  text-align: center;
+}
+
+.seek-confirm__warning {
+  font-family: var(--font-display);
+  font-size: clamp(11px, 1vw, 14px);
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.8;
+  display: block;
+  margin-bottom: clamp(10px, 1.4vh, 16px);
+}
+
+.seek-confirm__question {
+  font-family: var(--font-serif);
+  font-size: clamp(16px, 1.5vw, 22px);
+  color: var(--parchment);
+  font-style: italic;
+  line-height: 1.65;
+  margin: 0 0 clamp(6px, 1vh, 10px);
+}
+
+.seek-confirm__missed {
+  font-family: var(--font-serif);
+  font-size: clamp(13px, 1.15vw, 17px);
+  color: rgba(240, 226, 192, 0.5);
+  font-style: italic;
+  margin: 0 0 clamp(14px, 2vh, 22px);
+  line-height: 1.5;
+}
+
+.seek-confirm__actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.seek-confirm__btn {
+  padding: 10px 32px;
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: clamp(11px, 1vw, 14px);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.seek-confirm__btn--yes {
+  border: 1px solid var(--gold-border);
+  color: var(--gold-dim);
+}
+
+.seek-confirm__btn--yes:hover {
+  color: var(--gold-bright);
+  border-color: var(--gold);
+  background: rgba(200, 164, 52, 0.08);
+}
+
+.seek-confirm__btn--no {
+  border: 1px solid rgba(200, 190, 160, 0.2);
+  color: rgba(240, 226, 192, 0.4);
+}
+
+.seek-confirm__btn--no:hover {
+  color: var(--parchment);
+  border-color: rgba(200, 190, 160, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+}

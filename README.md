@@ -40,9 +40,14 @@ src/
   index.html         entry — pulls in the component partials below
   components/*.html  page sections (hero, roundtable, npc-dialogue, erdtree, …)
   js/main.js         all behaviour — one file, ~10 small classes
-  css/main.css       all styling
+  css/main.css       @import list only — import order is cascade order
+  css/tokens.css     design tokens (color, type, space, motion, layers)
+  css/base/          fonts, reset, page-level base rules
+  css/sections/      one file per page section (hero, roundtable, narration, …)
+  css/components/    shared UI (npc-dialog, sidenav, audio-controls, intro-modal, …)
   images/  video/    bundled visual assets
 audio/               music / sfx / dialogue (see note below)
+design/              local only (git-ignored): PSDs, token mirror, preview page
 ```
 
 ## Asset note (important)

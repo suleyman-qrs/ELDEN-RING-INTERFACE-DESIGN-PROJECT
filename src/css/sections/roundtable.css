@@ -1,0 +1,384 @@
+/* ======================================================
+   PHASE 2b — ROUNDTABLE HOLD
+   ====================================================== */
+
+.phase--roundtable {
+  background: var(--ink-0);
+  overflow: hidden;
+}
+
+.rt-layers {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 60%;
+  transition: transform 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Subtitle overlay — Elden Ring style */
+/* Hidden portrait preloads — let Parcel bundle the images; JS reads .src at runtime */
+.rt-portrait-preload {
+  display: none;
+}
+
+/* ── NPC dialogue subtitle — visual novel style ───────── */
+
+.rt-subtitle {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1100px, 96vw);
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(18px, 2vw, 30px);
+  padding: clamp(20px, 2.8vh, 34px) clamp(24px, 2.8vw, 44px);
+  background: rgba(8, 6, 3, 0.93);
+  border: 1px solid var(--gold-border);
+  border-bottom: none;
+  z-index: 11;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.rt-subtitle.rt-subtitle--visible {
+  opacity: 1;
+}
+
+.rt-subtitle__portrait {
+  flex-shrink: 0;
+  width: clamp(90px, 10vw, 140px);
+  height: clamp(90px, 10vw, 140px);
+  object-fit: cover;
+  object-position: top center;
+  border: 1px solid var(--gold-border);
+  display: block;
+  filter: sepia(0.15) contrast(1.05);
+}
+
+.rt-subtitle__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.rt-subtitle__name {
+  display: block;
+  font-family: var(--font-display);
+  font-size: clamp(11px, 1vw, 15px);
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.9;
+  margin-bottom: clamp(7px, 0.9vh, 12px);
+}
+
+.rt-subtitle__text {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(17px, 1.7vw, 26px);
+  color: var(--parchment);
+  line-height: 1.65;
+  letter-spacing: 0.02em;
+  font-style: italic;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  min-height: 2em; /* prevent layout jump as text types in */
+}
+
+/* Static block cursor — no blink, hidden once typing finishes */
+.rt-subtitle__cursor {
+  display: inline;
+}
+.rt-subtitle__cursor::after {
+  content: "\258C"; /* ▌ LEFT HALF BLOCK */
+  color: inherit;
+  font-style: normal;
+}
+.rt-subtitle__cursor.rt-subtitle__cursor--done::after {
+  opacity: 0;
+}
+
+.rt-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.5s ease;
+}
+
+.rt-layer--base {
+  opacity: 1;
+  will-change: transform;
+}
+
+.rt-layer--no-events {
+  pointer-events: none;
+}
+
+.rt-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 65% 85% at 50% 50%,
+    transparent 25%,
+    rgba(0, 0, 0, 0.75) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Roundtable tutorial panel ────────────────────────── */
+
+.rt-tutorial {
+  position: absolute;
+  top: 6%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, 84vw);
+  z-index: 5;
+  background: rgba(8, 6, 3, 0.86);
+  border: 1px solid var(--gold-border);
+  box-shadow:
+    0 0 0 4px rgba(0, 0, 0, 0.55),
+    inset 0 0 60px rgba(0, 0, 0, 0.5);
+  padding: clamp(24px, 3.6vh, 44px) clamp(30px, 4vw, 56px);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.7s ease;
+}
+
+/* Show when roundtable is awake */
+.phase--roundtable.rt-awake .rt-tutorial:not(.rt-tutorial--dismissed) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Fade out when dismissed */
+.rt-tutorial--dismissed {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.rt-tutorial__rule {
+  display: block;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--gold-line),
+    transparent
+  );
+  margin: clamp(10px, 1.4vh, 16px) 0;
+}
+
+.rt-tutorial__heading {
+  font-family: var(--font-display);
+  font-size: clamp(12px, 1.1vw, 16px);
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.9;
+  margin: 0 0 6px;
+}
+
+.rt-tutorial__body {
+  font-family: var(--font-serif);
+  font-size: clamp(15px, 1.4vw, 20px);
+  color: var(--parchment);
+  line-height: 1.8;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  margin: 0;
+  opacity: 0.88;
+}
+
+.rt-tutorial__body em {
+  font-style: normal;
+  color: var(--gold);
+  opacity: 0.95;
+}
+
+.rt-tutorial__close {
+  display: inline-block;
+  margin-top: clamp(16px, 2vh, 24px);
+  padding: 9px 30px;
+  background: transparent;
+  border: 1px solid var(--gold-border);
+  font-family: var(--font-display);
+  font-size: clamp(11px, 1vw, 14px);
+  letter-spacing: 0.38em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.rt-tutorial__close:hover {
+  color: var(--gold-bright);
+  border-color: var(--gold);
+  background: rgba(200, 164, 52, 0.07);
+}
+
+.rt-hint {
+  position: absolute;
+  bottom: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-serif);
+  font-size: clamp(11px, 1vw, 15px);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--cream-dim);
+  opacity: 0;
+  z-index: 2;
+  transition: opacity 1s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Keyboard / controller "button" indicator before the label */
+.rt-hint::before {
+  content: "[ E ]";
+  font-family: var(--font-sans);
+  font-size: clamp(9px, 0.8vw, 12px);
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  border: 1px solid var(--gold-dim);
+  padding: 2px 6px;
+  opacity: 0.8;
+}
+
+.phase--roundtable.rt-awake .rt-hint {
+  animation: hintFade 4s ease-in-out 1.5s forwards;
+}
+
+@keyframes hintFade {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.4;
+  }
+  70% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
+/* NPC character layers — always visible, glow added by JS on hover */
+.rt-layer--npc {
+  opacity: 1;
+  pointer-events: none;
+  will-change: transform;
+  transition: filter 0.3s ease;
+}
+
+.rt-layer--npc.rt-npc--glow {
+  filter: drop-shadow(0 0 18px rgba(212, 175, 80, 0.65))
+    drop-shadow(0 0 6px rgba(255, 220, 120, 0.45));
+}
+
+/* Invisible hover/click zones positioned over each NPC */
+.rt-npc-zone {
+  position: absolute;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  pointer-events: none; /* enabled by JS once rt-awake */
+  z-index: 3;
+}
+
+.phase--roundtable.rt-awake .rt-npc-zone {
+  pointer-events: auto;
+}
+
+.rt-npc-zone:focus-visible {
+  outline: 2px solid rgba(212, 175, 80, 0.8);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+/* NPC click/hover zone positions — matched to roundtable scene layout */
+#rt-zone-gideon {
+  left: 10%;
+  top: 49%;
+  width: 13%;
+  height: 42%;
+}
+#rt-zone-d {
+  left: 16%;
+  top: 49%;
+  width: 15%;
+  height: 39%;
+}
+#rt-zone-rogier {
+  left: 58%;
+  top: 49%;
+  width: 13%;
+  height: 38%;
+}
+#rt-zone-enia {
+  left: 71%;
+  top: 34%;
+  width: 25%;
+  height: 66%;
+}
+
+/* Lost-grace easter-egg hotspot — invisible patch over the Site of Grace.
+   Nudge left/top/width/height so it sits exactly over the golden glow. */
+#rt-zone-grace {
+  left: 44%;
+  top: 32%;
+  width: 8%;
+  height: 18%;
+}
+
+/* Barely-there glow on hover so the curious can find it. */
+#rt-zone-grace:hover {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 226, 130, 0.14),
+    transparent 70%
+  );
+}
+
+/* "Lost grace discovered" banner — a transient, click-through flash. */
+.lost-grace {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grace);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.lost-grace--visible {
+  opacity: 1;
+}
+
+.lost-grace img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scale(1.3);
+  transition: transform 0.9s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.lost-grace--visible img {
+  transform: scale(1.45);
+}
